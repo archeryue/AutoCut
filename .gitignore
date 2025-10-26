@@ -1,0 +1,149 @@
+# Dependencies
+node_modules/
+venv/
+env/
+*.pyc
+__pycache__/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+
+# Build outputs
+build/
+dist/
+out/
+.next/
+*.egg-info/
+.cache/
+.parcel-cache/
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+*.cover
+.hypothesis/
+.coverage.*
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+firebase-export-*
+firestore.rules.compiled
+.firebaserc
+
+# Google Cloud
+keyfile.json
+service-account.json
+gcs-keyfile.json
+*.p12
+*.pem
+credentials/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Python
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Next.js
+.next/
+out/
+.vercel
+next-env.d.ts
+
+# Production
+build/
+dist/
+
+# Misc
+.cache
+.temp
+.tmp
+*.bak
+*.backup
+*.orig
+*~
+
+# Video processing temp files
+temp/
+uploads/
+renders/
+*.mp4.tmp
+*.mov.tmp
+*.avi.tmp
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Secrets (extra safety)
+secrets/
+private/
+*.key
+*.cert
+*.crt
+*.pem
