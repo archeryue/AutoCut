@@ -66,8 +66,16 @@
                     <div id="dropZone" class="drop-zone">
                         <p>Drag and drop a video file here or click Upload Video</p>
                     </div>
-                    <video id="videoPlayer" class="video-player" controls></video>
+                    <video id="videoPlayer" class="video-player"></video>
                     <canvas id="videoCanvas" class="video-canvas"></canvas>
+                </div>
+
+                <!-- Video Progress Bar -->
+                <div class="video-progress-container">
+                    <div class="video-progress-bar">
+                        <div id="videoProgressFilled" class="video-progress-filled"></div>
+                        <div id="videoProgressHandle" class="video-progress-handle"></div>
+                    </div>
                 </div>
 
                 <!-- Timeline -->
@@ -130,7 +138,14 @@
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay hidden">
         <div class="spinner"></div>
-        <p>Processing...</p>
+        <p id="loadingText">Processing...</p>
+        <div id="exportProgress" class="export-progress hidden">
+            <div class="export-progress-bar">
+                <div id="exportProgressFilled" class="export-progress-filled"></div>
+            </div>
+            <p id="exportProgressText">0%</p>
+            <p id="exportTimeText">00:00 / 00:00</p>
+        </div>
     </div>
 
     <!-- Scripts -->
