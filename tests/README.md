@@ -2,7 +2,7 @@
 
 Tests for WebAV integration code. These tests verify that our code correctly interacts with WebAV APIs.
 
-**Total: 50 passing tests** (3 test files)
+**Total: 61 passing tests** (4 test files)
 
 ## What We Test
 
@@ -18,6 +18,22 @@ Tests for WebAV integration code. These tests verify that our code correctly int
 - ReadableStream validation and characteristics
 - Performance considerations
 - Mock integration testing
+
+### ✅ Export Issues (11 tests)
+- **Black frames at start bug**:
+  - Tests that NEW OffscreenSprite instances are created for export (not reusing preview sprites)
+  - Demonstrates the bug when reusing preview sprites
+  - Verifies export sprites are separate from preview sprites
+- **Wrong order bug**:
+  - Tests sprites are added to Combinator in timeline order
+  - Tests export position tracking for sequential placement
+  - Tests each sprite configured with correct offset and duration
+- **Export workflow**:
+  - End-to-end export workflow test
+  - Handling split clips in export
+  - Applying opacity during export
+- **Bug prevention**:
+  - Documents the export bugs and correct patterns
 
 ### ✅ Playback and Timeline Issues (14 tests)
 - **Playback rendering**:
@@ -90,6 +106,7 @@ tests/
 ├── mocks/
 │   └── webav.js                    # Mock WebAV classes (MP4Clip, OffscreenSprite, Combinator)
 ├── mp4clip-initialization.test.js  # Tests for correct MP4Clip initialization patterns (18 tests)
+├── export-issues.test.js           # Tests for export black frames and wrong order bugs (11 tests)
 ├── playback-timeline.test.js       # Tests for playback rendering and timeline offset handling (14 tests)
 ├── integration.test.js             # Integration tests for WebAV (18 tests)
 └── README.md                       # This file
