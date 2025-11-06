@@ -1,8 +1,9 @@
 {
   "name": "autocut",
-  "version": "1.0.0",
-  "description": "A powerful, browser-based video editing tool",
+  "version": "2.0.0",
+  "description": "A powerful, browser-based video editing tool powered by WebAV",
   "main": "index.html",
+  "type": "module",
   "scripts": {
     "start": "python -m http.server 8000",
     "dev": "python -m http.server 8000"
@@ -14,12 +15,17 @@
     "browser",
     "html5",
     "canvas",
-    "video-editing"
+    "video-editing",
+    "webcodecs",
+    "webav"
   ],
   "author": "",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/archeryue/AutoCut"
+  },
+  "dependencies": {
+    "@webav/av-cliper": "^1.1.6"
   }
 }
