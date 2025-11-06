@@ -30,7 +30,7 @@ const state = {
 
     // Audio
     audioContext: null,
-    audioQueue: [],
+    nextAudioTime: 0, // Track when next audio chunk should play
 };
 
 // ==================== Initialization ====================
@@ -442,6 +442,11 @@ function play() {
     state.isPlaying = true;
     state.lastFrameTime = performance.now();
 
+    // Initialize audio time for scheduling
+    if (state.audioContext) {
+        state.nextAudioTime = state.audioContext.currentTime;
+    }
+
     document.querySelector('#playPauseBtn .icon').textContent = '⏸';
 
     playbackLoop();
@@ -455,9 +460,9 @@ function pause() {
         state.animationFrameId = null;
     }
 
-    // Suspend audio context to stop audio
-    if (state.audioContext && state.audioContext.state === 'running') {
-        state.audioContext.suspend();
+    // Reset audio scheduling when pausing
+    if (state.audioContext) {
+        state.nextAudioTime = state.audioContext.currentTime;
     }
 
     document.querySelector('#playPauseBtn .icon').textContent = '▶';
@@ -594,23 +599,28 @@ async function playAudioSamples(channelSamples, sampleRate) {
         // Create AudioContext if not exists
         if (!state.audioContext) {
             state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            state.nextAudioTime = state.audioContext.currentTime;
             console.log('AudioContext created:', state.audioContext);
         }
 
         // Resume AudioContext if suspended (required by browser autoplay policy)
         if (state.audioContext.state === 'suspended') {
             await state.audioContext.resume();
+            state.nextAudioTime = state.audioContext.currentTime;
         }
 
         // channelSamples is an array of Float32Arrays, one per channel
         const numberOfChannels = channelSamples.length;
         const length = channelSamples[0].length;
+        const duration = length / sampleRate;
 
         console.log('Playing audio:', {
             numberOfChannels,
             length,
             sampleRate,
-            duration: (length / sampleRate * 1000).toFixed(2) + 'ms'
+            duration: (duration * 1000).toFixed(2) + 'ms',
+            scheduledAt: state.nextAudioTime.toFixed(3),
+            currentTime: state.audioContext.currentTime.toFixed(3)
         });
 
         // Create AudioBuffer
@@ -625,13 +635,19 @@ async function playAudioSamples(channelSamples, sampleRate) {
             audioBuffer.copyToChannel(channelSamples[channel], channel, 0);
         }
 
-        // Create source and play immediately
+        // Schedule audio to play at the correct time
         const source = state.audioContext.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(state.audioContext.destination);
-        source.start(0);
 
-        console.log('Audio played successfully');
+        // Schedule playback
+        const playTime = Math.max(state.nextAudioTime, state.audioContext.currentTime);
+        source.start(playTime);
+
+        // Update next audio time
+        state.nextAudioTime = playTime + duration;
+
+        console.log('Audio scheduled successfully, next:', state.nextAudioTime.toFixed(3));
     } catch (error) {
         console.error('Error playing audio:', error);
     }
