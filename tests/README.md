@@ -2,7 +2,7 @@
 
 Tests for WebAV integration code. These tests verify that our code correctly interacts with WebAV APIs.
 
-**Total: 36 passing tests**
+**Total: 50 passing tests** (3 test files)
 
 ## What We Test
 
@@ -18,6 +18,20 @@ Tests for WebAV integration code. These tests verify that our code correctly int
 - ReadableStream validation and characteristics
 - Performance considerations
 - Mock integration testing
+
+### ✅ Playback and Timeline Issues (14 tests)
+- **Playback rendering**:
+  - Tests that playbackLoop awaits renderFrame (sequential execution)
+  - Demonstrates the bug when not awaiting (interleaved execution)
+  - Ensures frames are rendered completely before continuing
+- **Sprite offset handling**:
+  - Tests sprite.time.offset (clip offset) vs startTime (timeline position)
+  - Tests correct offset when adding clips to timeline (always 0 for full clips)
+  - Tests correct offset when splitting clips (splitPoint in source, not timeline position)
+  - Tests that offsets are NOT modified when deleting clips and shifting timeline
+- **Integration scenarios**:
+  - Timeline position to source clip time calculations
+  - Rendering with trimmed clips (non-zero offsets)
 
 ### ✅ Video Loading Integration (18 tests)
 - Creating MP4Clip from blob URL + fetch
@@ -75,8 +89,9 @@ tests/
 ├── setup.js                        # Test environment setup, mocks browser APIs
 ├── mocks/
 │   └── webav.js                    # Mock WebAV classes (MP4Clip, OffscreenSprite, Combinator)
-├── mp4clip-initialization.test.js  # Tests for correct MP4Clip initialization patterns
-├── integration.test.js             # Integration tests for WebAV
+├── mp4clip-initialization.test.js  # Tests for correct MP4Clip initialization patterns (18 tests)
+├── playback-timeline.test.js       # Tests for playback rendering and timeline offset handling (14 tests)
+├── integration.test.js             # Integration tests for WebAV (18 tests)
 └── README.md                       # This file
 ```
 
