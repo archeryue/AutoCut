@@ -171,8 +171,8 @@ async function loadVideoFile(file) {
         const blobUrl = URL.createObjectURL(file);
         const response = await fetch(blobUrl);
 
-        // Create MP4Clip from fetch response
-        const clip = new MP4Clip(response);
+        // Create MP4Clip from response body (ReadableStream)
+        const clip = new MP4Clip(response.body);
         await clip.ready;
 
         // Clean up blob URL after loading
