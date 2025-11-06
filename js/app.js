@@ -541,6 +541,8 @@ async function renderFrame(time) {
         const result = await activeSprite.clip.tick(sourceTime);
 
         console.log('Render result:', result);
+        console.log('result.video type:', typeof result.video);
+        console.log('result.video value:', result.video);
 
         if (result.video) {
             console.log('Drawing video frame to canvas');
@@ -563,14 +565,22 @@ async function renderFrame(time) {
 
             state.ctx.globalAlpha = 1.0;
         } else {
-            console.log('No video frame in result');
+            console.log('No video frame in result - result.video is:', result.video);
         }
 
         // Handle audio (result.audio is an array of AudioData)
         if (result.audio && Array.isArray(result.audio) && result.audio.length > 0) {
             console.log('Audio frames available:', result.audio.length);
+            console.log('Audio array content:', result.audio);
+            console.log('First audio element type:', typeof result.audio[0]);
+            console.log('First audio element:', result.audio[0]);
+
             for (const audioData of result.audio) {
-                await playAudioFrame(audioData);
+                if (audioData && audioData.numberOfChannels !== undefined) {
+                    await playAudioFrame(audioData);
+                } else {
+                    console.warn('Skipping invalid audio data:', audioData);
+                }
             }
         }
     } catch (error) {
