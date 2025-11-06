@@ -27,6 +27,10 @@ const state = {
     // Playback
     animationFrameId: null,
     lastFrameTime: null,
+
+    // Audio
+    audioContext: null,
+    audioQueue: [],
 };
 
 // ==================== Initialization ====================
@@ -446,6 +450,11 @@ function pause() {
         state.animationFrameId = null;
     }
 
+    // Suspend audio context to stop audio
+    if (state.audioContext && state.audioContext.state === 'running') {
+        state.audioContext.suspend();
+    }
+
     document.querySelector('#playPauseBtn .icon').textContent = '▶';
 }
 
@@ -556,8 +565,70 @@ async function renderFrame(time) {
         } else {
             console.log('No video frame in result');
         }
+
+        // Handle audio
+        if (result.audio) {
+            console.log('Audio frame available:', result.audio);
+            await playAudioFrame(result.audio);
+        }
     } catch (error) {
         console.error('Error rendering frame:', error);
+    }
+}
+
+async function playAudioFrame(audioData) {
+    try {
+        // Create AudioContext if not exists
+        if (!state.audioContext) {
+            state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('AudioContext created:', state.audioContext);
+        }
+
+        // Resume AudioContext if suspended (required by browser autoplay policy)
+        if (state.audioContext.state === 'suspended') {
+            await state.audioContext.resume();
+        }
+
+        // Convert AudioData to AudioBuffer
+        const numberOfChannels = audioData.numberOfChannels;
+        const length = audioData.numberOfFrames;
+        const sampleRate = audioData.sampleRate;
+
+        console.log('Audio data info:', { numberOfChannels, length, sampleRate });
+
+        // Create AudioBuffer
+        const audioBuffer = state.audioContext.createBuffer(
+            numberOfChannels,
+            length,
+            sampleRate
+        );
+
+        // Copy audio data to buffer
+        const copyOptions = {
+            planeIndex: 0,
+            frameOffset: 0,
+            frameCount: length,
+            format: audioData.format
+        };
+
+        for (let channel = 0; channel < numberOfChannels; channel++) {
+            const channelData = new Float32Array(length);
+            audioData.copyTo(channelData, { ...copyOptions, planeIndex: channel });
+            audioBuffer.copyToChannel(channelData, channel, 0);
+        }
+
+        // Close AudioData to free memory
+        audioData.close();
+
+        // Create source and play immediately
+        const source = state.audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(state.audioContext.destination);
+        source.start(0);
+
+        console.log('Audio frame played');
+    } catch (error) {
+        console.error('Error playing audio frame:', error);
     }
 }
 
