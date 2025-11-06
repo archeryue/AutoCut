@@ -167,16 +167,9 @@ async function loadVideoFile(file) {
     try {
         console.log('Loading video:', file.name);
 
-        // Create blob URL and fetch it (WebAV preferred method)
-        const blobUrl = URL.createObjectURL(file);
-        const response = await fetch(blobUrl);
-
-        // Create MP4Clip from response body (ReadableStream)
-        const clip = new MP4Clip(response.body);
+        // Create MP4Clip directly from file stream
+        const clip = new MP4Clip(file.stream());
         await clip.ready;
-
-        // Clean up blob URL after loading
-        URL.revokeObjectURL(blobUrl);
 
         // Get metadata
         const meta = clip.meta;
