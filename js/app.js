@@ -589,12 +589,36 @@ async function playAudioFrame(audioData) {
             await state.audioContext.resume();
         }
 
-        // Convert AudioData to AudioBuffer
+        // Get audio properties
         const numberOfChannels = audioData.numberOfChannels;
         const length = audioData.numberOfFrames;
         const sampleRate = audioData.sampleRate;
 
-        console.log('Audio data info:', { numberOfChannels, length, sampleRate });
+        console.log('Audio data info:', {
+            numberOfChannels,
+            length,
+            sampleRate,
+            format: audioData.format,
+            duration: audioData.duration,
+            timestamp: audioData.timestamp
+        });
+
+        // Validate parameters
+        if (!Number.isFinite(numberOfChannels) || numberOfChannels <= 0) {
+            console.warn('Invalid numberOfChannels:', numberOfChannels);
+            audioData.close();
+            return;
+        }
+        if (!Number.isFinite(length) || length <= 0) {
+            console.warn('Invalid length:', length);
+            audioData.close();
+            return;
+        }
+        if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
+            console.warn('Invalid sampleRate:', sampleRate);
+            audioData.close();
+            return;
+        }
 
         // Create AudioBuffer
         const audioBuffer = state.audioContext.createBuffer(
@@ -626,9 +650,13 @@ async function playAudioFrame(audioData) {
         source.connect(state.audioContext.destination);
         source.start(0);
 
-        console.log('Audio frame played');
+        console.log('Audio frame played successfully');
     } catch (error) {
         console.error('Error playing audio frame:', error);
+        console.error('AudioData object:', audioData);
+        if (audioData && !audioData.isClosed) {
+            audioData.close();
+        }
     }
 }
 
