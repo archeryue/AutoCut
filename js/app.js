@@ -3,7 +3,7 @@
  * Main Application
  */
 
-import { MP4Clip, OffscreenSprite, Combinator } from '../node_modules/@webav/av-cliper/dist/index.js';
+import { MP4Clip, OffscreenSprite, Combinator } from 'https://cdn.jsdelivr.net/npm/@webav/av-cliper@1.1.6/+esm';
 
 // ==================== Global State ====================
 
