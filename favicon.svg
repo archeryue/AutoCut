@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="#4a9eff"/>
+
+  <!-- Scissors design -->
+  <g transform="translate(50, 50)">
+    <!-- Left blade (top circle and blade) -->
+    <circle cx="-15" cy="-18" r="8" fill="#ffffff" stroke="#1a1a1a" stroke-width="2"/>
+    <path d="M -15 -10 L -5 10" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M -15 -10 L -8 5" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Right blade (bottom circle and blade) -->
+    <circle cx="-15" cy="18" r="8" fill="#ffffff" stroke="#1a1a1a" stroke-width="2"/>
+    <path d="M -15 10 L -5 -10" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M -15 10 L -8 -5" stroke="#1a1a1a" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Pivot point -->
+    <circle cx="-5" cy="0" r="3" fill="#1a1a1a"/>
+
+    <!-- Right handles -->
+    <circle cx="15" cy="-18" r="8" fill="#ffffff" stroke="#1a1a1a" stroke-width="2"/>
+    <circle cx="15" cy="18" r="8" fill="#ffffff" stroke="#1a1a1a" stroke-width="2"/>
+
+    <!-- Right arms -->
+    <path d="M 15 -18 L -5 0" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 15 18 L -5 0" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Cutting line indication -->
+    <line x1="-8" y1="-5" x2="-20" y2="-25" stroke="#ffdd00" stroke-width="2" stroke-linecap="round" stroke-dasharray="3,3"/>
+    <line x1="-8" y1="5" x2="-20" y2="25" stroke="#ffdd00" stroke-width="2" stroke-linecap="round" stroke-dasharray="3,3"/>
+  </g>
+</svg>
