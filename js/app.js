@@ -566,10 +566,12 @@ async function renderFrame(time) {
             console.log('No video frame in result');
         }
 
-        // Handle audio
-        if (result.audio) {
-            console.log('Audio frame available:', result.audio);
-            await playAudioFrame(result.audio);
+        // Handle audio (result.audio is an array of AudioData)
+        if (result.audio && Array.isArray(result.audio) && result.audio.length > 0) {
+            console.log('Audio frames available:', result.audio.length);
+            for (const audioData of result.audio) {
+                await playAudioFrame(audioData);
+            }
         }
     } catch (error) {
         console.error('Error rendering frame:', error);
@@ -606,17 +608,23 @@ async function playAudioFrame(audioData) {
         // Validate parameters
         if (!Number.isFinite(numberOfChannels) || numberOfChannels <= 0) {
             console.warn('Invalid numberOfChannels:', numberOfChannels);
-            audioData.close();
+            if (audioData && typeof audioData.close === 'function') {
+                audioData.close();
+            }
             return;
         }
         if (!Number.isFinite(length) || length <= 0) {
             console.warn('Invalid length:', length);
-            audioData.close();
+            if (audioData && typeof audioData.close === 'function') {
+                audioData.close();
+            }
             return;
         }
         if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
             console.warn('Invalid sampleRate:', sampleRate);
-            audioData.close();
+            if (audioData && typeof audioData.close === 'function') {
+                audioData.close();
+            }
             return;
         }
 
@@ -654,8 +662,12 @@ async function playAudioFrame(audioData) {
     } catch (error) {
         console.error('Error playing audio frame:', error);
         console.error('AudioData object:', audioData);
-        if (audioData && !audioData.isClosed) {
-            audioData.close();
+        if (audioData && typeof audioData.close === 'function') {
+            try {
+                audioData.close();
+            } catch (closeError) {
+                console.error('Error closing AudioData:', closeError);
+            }
         }
     }
 }
