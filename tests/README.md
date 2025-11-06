@@ -2,9 +2,24 @@
 
 Tests for WebAV integration code. These tests verify that our code correctly interacts with WebAV APIs.
 
+**Total: 36 passing tests**
+
 ## What We Test
 
-### ✅ Video Loading Integration
+### ✅ MP4Clip Initialization (18 tests)
+- **Incorrect patterns** that throw "Illegal argument":
+  - Passing raw File object to MP4Clip
+  - Passing Response object instead of ReadableStream
+  - Passing blob URL string instead of stream
+- **Correct patterns** that work:
+  - Using `file.stream()` to get ReadableStream
+  - Using `response.body` from fetch
+- Integration with loadVideoFile function
+- ReadableStream validation and characteristics
+- Performance considerations
+- Mock integration testing
+
+### ✅ Video Loading Integration (18 tests)
 - Creating MP4Clip from blob URL + fetch
 - Handling MP4Clip metadata (duration, width, height)
 
@@ -57,11 +72,12 @@ npm run test:ui
 
 ```
 tests/
-├── setup.js              # Test environment setup, mocks browser APIs
+├── setup.js                        # Test environment setup, mocks browser APIs
 ├── mocks/
-│   └── webav.js          # Mock WebAV classes (MP4Clip, OffscreenSprite, Combinator)
-├── integration.test.js   # Integration tests for WebAV
-└── README.md            # This file
+│   └── webav.js                    # Mock WebAV classes (MP4Clip, OffscreenSprite, Combinator)
+├── mp4clip-initialization.test.js  # Tests for correct MP4Clip initialization patterns
+├── integration.test.js             # Integration tests for WebAV
+└── README.md                       # This file
 ```
 
 ## Mock Strategy

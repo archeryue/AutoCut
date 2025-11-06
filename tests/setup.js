@@ -35,4 +35,21 @@ global.fetch = vi.fn(() =>
   })
 );
 
+// Mock File.prototype.stream() method
+if (typeof File !== 'undefined' && !File.prototype.stream) {
+  File.prototype.stream = function() {
+    // Return a ReadableStream that provides the file content
+    const fileContent = this;
+    return new ReadableStream({
+      start(controller) {
+        // Mock: Enqueue some data based on file content
+        const encoder = new TextEncoder();
+        const data = encoder.encode('mock video data');
+        controller.enqueue(data);
+        controller.close();
+      }
+    });
+  };
+}
+
 console.log('Test environment setup complete');
