@@ -975,6 +975,12 @@ async function exportVideo() {
 
     try {
         console.log('Starting export...');
+        console.log('Timeline sprites:', state.sprites.map(s => ({
+            id: s.id,
+            startTime: s.startTime,
+            duration: s.duration,
+            offset: s.sprite.time.offset
+        })));
 
         // Create combinator
         const firstSprite = state.sprites[0];
@@ -985,10 +991,45 @@ async function exportVideo() {
             height: material.metadata.height
         });
 
-        // Add all sprites
-        for (const spriteState of state.sprites) {
-            await combinator.addSprite(spriteState.sprite);
+        console.log('Combinator created with dimensions:', material.metadata.width, 'x', material.metadata.height);
+
+        // Add all sprites in timeline order
+        // For export, we need to create new OffscreenSprite instances configured for the Combinator
+        let exportPosition = 0; // Track position in output video (microseconds)
+
+        for (let i = 0; i < state.sprites.length; i++) {
+            const spriteState = state.sprites[i];
+            const spriteMaterial = state.materials.find(m => m.id === spriteState.materialId);
+
+            console.log(`Adding sprite ${i + 1}/${state.sprites.length}:`, {
+                clip: spriteMaterial.name,
+                offset: spriteState.sprite.time.offset,
+                duration: spriteState.duration,
+                exportPosition: exportPosition
+            });
+
+            // Create a new OffscreenSprite for export
+            const exportSprite = new OffscreenSprite(spriteState.clip);
+
+            // Configure time - offset is where to start in source, duration is how much to use
+            exportSprite.time = {
+                offset: spriteState.sprite.time.offset, // Trim offset in source clip
+                duration: spriteState.duration // Duration to export
+            };
+
+            // Apply opacity
+            exportSprite.opacity = spriteState.opacity;
+
+            // TODO: Apply filters (WebAV might handle this differently for export)
+            // For now, filters are visual-only during preview
+
+            await combinator.addSprite(exportSprite);
+
+            exportPosition += spriteState.duration;
+            updateExportProgress((i / state.sprites.length) * 50); // First 50% for adding sprites
         }
+
+        console.log('All sprites added to combinator. Total duration:', exportPosition / 1000000, 'seconds');
 
         // Get output stream
         console.log('Generating output stream...');
@@ -999,18 +1040,24 @@ async function exportVideo() {
         const reader = stream.getReader();
 
         let done = false;
+        let chunkCount = 0;
         while (!done) {
             const { value, done: readerDone } = await reader.read();
             done = readerDone;
 
             if (value) {
                 chunks.push(value);
+                chunkCount++;
 
-                // Update progress (rough estimate)
-                const progress = (chunks.length * 100) / 1000; // Rough estimate
-                updateExportProgress(Math.min(progress, 99));
+                // Update progress (50-99% for encoding)
+                const progress = 50 + Math.min((chunkCount / 100) * 49, 49);
+                updateExportProgress(progress);
+
+                console.log(`Encoded chunk ${chunkCount}, size: ${value.byteLength} bytes`);
             }
         }
+
+        console.log(`Total chunks: ${chunkCount}, total size: ${chunks.reduce((sum, c) => sum + c.byteLength, 0)} bytes`);
 
         // Create blob and download
         const blob = new Blob(chunks, { type: 'video/mp4' });
