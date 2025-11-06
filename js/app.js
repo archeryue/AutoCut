@@ -263,20 +263,14 @@ async function addMaterialToTimeline(material) {
         // Create sprite
         const sprite = new OffscreenSprite(material.clip);
 
-        // Configure sprite
+        // Configure sprite timing
         const duration = material.metadata.duration;
         sprite.time = {
             offset: startPosition,
             duration: duration
         };
 
-        // Default properties
-        sprite.rect = {
-            x: 0,
-            y: 0,
-            w: material.metadata.width,
-            h: material.metadata.height
-        };
+        // Set opacity (rect is handled internally by WebAV)
         sprite.opacity = 1.0;
 
         // Create sprite state object
