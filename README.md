@@ -1,268 +1,247 @@
-# AutoCut - AI-Powered Vlog Generation Platform
+# AutoCut - Web Video Editor
 
-<div align="center">
+A powerful, browser-based video editing tool built with vanilla JavaScript, HTML5, and CSS3. No server required - everything runs in your browser!
 
-![AutoCut Logo](docs/images/logo.png)
+## Features
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/python-v3.10+-blue.svg)](https://www.python.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
-[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Powered-4285F4)](https://cloud.google.com/)
-[![Gemini API](https://img.shields.io/badge/Gemini%20API-1.5%20Pro-8E75B2)](https://ai.google.dev/)
+### Core Editing
+- **Video Import**: Drag-and-drop or upload video files
+- **Timeline Editor**: Visual timeline with clip management
+- **Split Clips**: Cut videos at any point
+- **Delete Clips**: Remove unwanted segments
+- **Trim**: Adjust clip start and end points
+- **Playback Controls**: Play, pause, stop, and scrub through your video
 
-*Transform your photos and videos into professional vlogs with AI-powered editing and storytelling*
+### Visual Effects
+- **Filters**: Apply grayscale, sepia, brightness, and contrast filters
+- **Opacity Control**: Adjust video transparency
+- **Real-time Preview**: See changes instantly as you edit
 
-[Demo](https://autocut-demo.web.app) | [Documentation](./docs) | [API Reference](./docs/API.md) | [Contributing](./CONTRIBUTING.md)
+### Playback Options
+- **Variable Speed**: 0.5x, 1x, 1.5x, and 2x playback speeds
+- **Volume Control**: Adjust audio levels
+- **Timeline Scrubbing**: Click anywhere on the timeline to jump to that point
 
-</div>
+### Export
+- **Multiple Formats**: Export as MP4 or WebM
+- **Quality Settings**: Choose between low, medium, and high quality
+- **Configuration Export**: Get a JSON export of your edit decisions
 
-## 🎬 Overview
+## Getting Started
 
-AutoCut is an AI-powered automatic video editing tool that transforms your raw photos and videos into engaging vlogs. Using Google's Gemini API for intelligent content analysis and natural language processing, AutoCut creates professional-quality vlogs with minimal effort.
+### Quick Start
+1. Open `index.html` in a modern web browser (Chrome, Firefox, Edge, or Safari)
+2. Drag and drop a video file onto the drop zone, or click "Upload Video"
+3. Use the tools on the left sidebar to edit your video
+4. Adjust properties in the right sidebar
+5. Click "Export Video" when done
 
-### Key Features
-
-- 📸 **Smart Media Analysis** - AI-powered scene detection, object recognition, and mood analysis
-- 🤖 **Intelligent Plan Generation** - Automatic story arc creation based on your content
-- 💬 **Conversational Editing** - Modify your vlog plan using natural language
-- 🎨 **Professional Effects** - Automatic transitions, music selection, and text overlays
-- ☁️ **Cloud-Native** - Built entirely on Google Cloud Platform for scalability
-- 🚀 **Fast Processing** - Serverless architecture with automatic scaling
-
-## 📺 Demo
-
-![AutoCut Demo](docs/images/demo.gif)
-
-## 🏗️ Architecture
-
-AutoCut is built with a modern, cloud-native architecture using Google Cloud Platform services:
-
-```
-Frontend (Next.js + Firebase) → Cloud Run APIs → GCP Services
-                                                 ├── Gemini API (AI Analysis)
-                                                 ├── Cloud Storage (Media)
-                                                 ├── Firestore (Database)
-                                                 ├── Transcoder API (Video)
-                                                 └── Cloud CDN (Delivery)
-```
-
-For detailed architecture documentation, see [Architecture Guide](./docs/ARCHITECTURE.md).
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 18+ and npm
-- Python 3.10+
-- Google Cloud Platform account
-- Firebase project
-- Gemini API access
-
-### Installation
-
-1. **Clone the repository**
+### No Installation Required
+This is a pure client-side application. Simply:
 ```bash
-git clone https://github.com/yourusername/AutoCut.git
-cd AutoCut
+# Open the file directly in your browser
+open index.html
+
+# Or serve it with a simple HTTP server
+python -m http.server 8000
+# Then visit http://localhost:8000
 ```
 
-2. **Set up GCP and Firebase**
+## Project Structure
+
+```
+AutoCut/
+├── index.html          # Main application interface
+├── css/
+│   └── styles.css      # Application styling
+├── js/
+│   ├── app.js          # Main application logic and UI handlers
+│   └── video-editor.js # Core video editing engine
+├── assets/             # Assets directory (for future use)
+└── README.md           # This file
+```
+
+## How It Works
+
+### Architecture
+AutoCut is built with a clean separation of concerns:
+
+1. **VideoEditor Class** (`video-editor.js`): Core editing engine
+   - Manages video state and clips
+   - Handles filter application
+   - Provides editing operations (split, trim, delete)
+   - Controls playback
+
+2. **Application Layer** (`app.js`): UI and interaction handling
+   - Event listeners for user interactions
+   - Timeline rendering
+   - UI updates
+   - File handling
+
+3. **Presentation Layer** (`index.html` + `styles.css`): User interface
+   - Responsive layout
+   - Modern, dark-themed design
+   - Intuitive controls
+
+### Key Technologies
+- **HTML5 Video API**: For video playback and control
+- **Canvas API**: For applying real-time filters and effects
+- **File API**: For handling video file uploads
+- **Drag and Drop API**: For intuitive file import
+
+## Usage Guide
+
+### Importing Videos
+1. **Drag and Drop**: Drag a video file onto the drop zone
+2. **File Upload**: Click "Upload Video" button and select a file
+
+Supported formats: Any format your browser can play (typically MP4, WebM, OGG)
+
+### Editing Your Video
+
+#### Split a Clip
+1. Select a clip on the timeline (it will highlight in green)
+2. Scrub to the desired split point
+3. Click "Split Clip" button
+4. The clip will be divided into two separate clips
+
+#### Delete a Clip
+1. Select the clip you want to remove
+2. Click "Delete Clip" button
+3. Confirm the deletion
+4. Remaining clips will automatically reorganize
+
+#### Apply Filters
+1. Select a filter from the left sidebar:
+   - **None**: Remove all filters
+   - **Grayscale**: Black and white effect
+   - **Sepia**: Vintage/warm tone effect
+   - **Brightness**: Increase brightness by 50%
+   - **Contrast**: Increase contrast by 50%
+
+2. The filter applies immediately to the video
+
+#### Adjust Properties
+- **Volume**: Use the slider to adjust audio level (0-100%)
+- **Opacity**: Make video more or less transparent (0-100%)
+- **Speed**: Change playback speed (0.5x to 2x)
+
+### Timeline Navigation
+- **Click**: Click anywhere on the timeline to jump to that time
+- **Playhead**: The green line shows current playback position
+- **Time Markers**: Display timestamps for easy navigation
+
+### Exporting
+1. Configure export settings in the right sidebar:
+   - **Format**: MP4 or WebM
+   - **Quality**: Low, Medium, or High
+
+2. Click "Export Video"
+3. View the export configuration (in a production version, this would generate the actual video)
+
+## Browser Compatibility
+
+AutoCut works best in modern browsers:
+- ✅ Chrome 90+
+- ✅ Firefox 88+
+- ✅ Edge 90+
+- ✅ Safari 14+
+
+Required browser features:
+- HTML5 Video
+- Canvas 2D Context
+- File API
+- Drag and Drop API
+- ES6+ JavaScript
+
+## Limitations
+
+This is a client-side demo version with some limitations:
+
+1. **Export**: Currently shows export configuration instead of generating actual video files. For production, integrate FFmpeg.wasm or a backend service.
+
+2. **Large Files**: Very large video files may cause performance issues as they're loaded entirely into memory.
+
+3. **Complex Edits**: Advanced features like transitions, multiple tracks, and audio editing are not yet implemented.
+
+4. **Browser Codec Support**: Export formats limited to what the browser can encode.
+
+## Future Enhancements
+
+Potential improvements for production use:
+
+- [ ] FFmpeg.wasm integration for real video export
+- [ ] Multiple video tracks
+- [ ] Audio track editing
+- [ ] Transitions between clips
+- [ ] Text overlays and titles
+- [ ] More advanced filters and color correction
+- [ ] Undo/Redo functionality
+- [ ] Project save/load
+- [ ] Keyboard shortcuts
+- [ ] Zoom controls for timeline
+- [ ] Waveform visualization
+- [ ] Batch processing
+
+## Development
+
+### Running Locally
+No build process required! Just open `index.html` in your browser.
+
+For development with live reload, use any static file server:
+
 ```bash
-# Install Google Cloud SDK
-curl https://sdk.cloud.google.com | bash
+# Python
+python -m http.server 8000
 
-# Initialize gcloud and create project
-gcloud init
-gcloud projects create your-project-id
-gcloud config set project your-project-id
+# Node.js
+npx http-server
 
-# Enable required APIs
-./infrastructure/scripts/setup.sh
+# PHP
+php -S localhost:8000
 ```
 
-3. **Configure environment variables**
-```bash
-# Copy example env files
-cp frontend/.env.example frontend/.env.local
-cp backend/api/.env.example backend/api/.env
-cp backend/processor/.env.example backend/processor/.env
+### Code Structure
 
-# Edit with your GCP project details
-```
+**VideoEditor Class Methods:**
+- `init()`: Initialize with video and canvas elements
+- `loadVideo()`: Load video from file
+- `splitClip()`: Split clip at time position
+- `deleteClip()`: Remove clip
+- `trimClip()`: Adjust clip bounds
+- `applyFilters()`: Apply visual effects
+- `setFilter()`: Set specific filter
+- `setPlaybackRate()`: Change playback speed
+- `setVolume()`: Adjust audio level
 
-4. **Install dependencies**
-```bash
-# Frontend
-cd frontend
-npm install
+**Main Application Functions:**
+- `handleFileUpload()`: Process uploaded files
+- `renderTimeline()`: Draw timeline and clips
+- `togglePlayPause()`: Control playback
+- `splitCurrentClip()`: Split operation handler
+- `deleteSelectedClip()`: Delete operation handler
+- `applyFilter()`: Filter application handler
+- `exportVideo()`: Export handler
 
-# Backend API
-cd ../backend/api
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+## Contributing
 
-# Video Processor
-cd ../processor
-pip install -r requirements.txt
-```
+This is a demonstration project. Feel free to fork and enhance it with your own features!
 
-5. **Run locally**
-```bash
-# Terminal 1 - Frontend
-cd frontend
-npm run dev
+Some areas that would benefit from contributions:
+- Real export functionality with FFmpeg.wasm
+- Advanced editing features
+- Performance optimizations
+- Mobile responsiveness improvements
+- Accessibility enhancements
 
-# Terminal 2 - Backend API
-cd backend/api
-uvicorn main:app --reload
+## License
 
-# Terminal 3 - Video Processor
-cd backend/processor
-python main.py
-```
+MIT License - See LICENSE file for details
 
-Visit http://localhost:3000 to see the application.
+## Acknowledgments
 
-## 📦 Deployment
-
-### One-Click Deploy
-
-[![Deploy to Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run)
-
-### Manual Deployment
-
-```bash
-# Deploy everything with one command
-./infrastructure/scripts/deploy.sh
-
-# Or deploy individually:
-# Frontend to Firebase
-firebase deploy --only hosting
-
-# Backend to Cloud Run
-gcloud run deploy autocut-api --source backend/api
-gcloud run deploy autocut-processor --source backend/processor
-```
-
-For detailed deployment instructions, see [Deployment Guide](./docs/DEPLOYMENT.md).
-
-## 📖 Documentation
-
-- [Architecture Overview](./docs/ARCHITECTURE.md) - System design and components
-- [API Reference](./docs/API.md) - REST API endpoints and WebSocket events
-- [GCP Setup Guide](./docs/GCP_SETUP.md) - Detailed GCP configuration
-- [Development Guide](./docs/DEVELOPMENT.md) - Local development setup
-- [Deployment Guide](./docs/DEPLOYMENT.md) - Production deployment
-- [Contributing](./CONTRIBUTING.md) - Contribution guidelines
-
-## 🎯 Use Cases
-
-### Travel Vlog
-Upload your vacation photos and videos, and AutoCut will create a compelling travel story with:
-- Chronological organization
-- Location-based grouping
-- Scenic transitions
-- Background music matching the mood
-
-### Daily Vlog
-Transform daily clips into engaging content:
-- Automatic highlight detection
-- Remove boring parts
-- Add engaging transitions
-- Generate catchy titles
-
-### Event Compilation
-Create memorable videos from events:
-- Smart moment selection
-- Guest detection and grouping
-- Music synchronization
-- Automatic credits
-
-## 🛠️ Tech Stack
-
-### Frontend
-- **Next.js 14** - React framework with App Router
-- **Firebase** - Authentication and hosting
-- **Tailwind CSS** - Styling
-- **Shadcn/ui** - UI components
-- **Zustand** - State management
-
-### Backend
-- **FastAPI** - Python web framework
-- **Cloud Run** - Serverless deployment
-- **FFmpeg** - Video processing
-- **Gemini API** - AI analysis
-- **Cloud Tasks** - Job queue
-
-### Infrastructure
-- **Google Cloud Platform** - Cloud provider
-- **Firebase** - Frontend services
-- **Firestore** - NoSQL database
-- **Cloud Storage** - Media storage
-- **Transcoder API** - Video encoding
-- **Cloud CDN** - Content delivery
-
-## 📊 Performance
-
-- ⚡ **Upload Speed**: Direct to Cloud Storage with resumable uploads
-- 🚀 **Processing Time**: 2-5 minutes for a 10-minute vlog
-- 🌍 **Global CDN**: Sub-100ms latency worldwide
-- 📈 **Scalability**: Auto-scales from 0 to 1000+ concurrent users
-
-## 💰 Pricing
-
-| Tier | Price | Features |
-|------|-------|----------|
-| **Free** | $0/month | 5 vlogs/month, 720p export, 5GB storage |
-| **Pro** | $9.99/month | 50 vlogs/month, 1080p export, 100GB storage |
-| **Business** | $49.99/month | Unlimited vlogs, 4K export, 1TB storage |
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
-
-### Development Process
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Google Gemini team for the powerful AI API
-- FFmpeg community for video processing tools
-- Next.js and FastAPI communities
-- All our contributors and users
-
-## 📞 Support
-
-- 📧 Email: support@autocut.app
-- 💬 Discord: [Join our community](https://discord.gg/autocut)
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/AutoCut/issues)
-- 📖 Docs: [Documentation](https://docs.autocut.app)
-
-## 🗺️ Roadmap
-
-- [ ] Mobile app (iOS/Android)
-- [ ] AI voice-over generation
-- [ ] Custom music creation
-- [ ] Multi-language support
-- [ ] Collaborative editing
-- [ ] Social media optimization
-- [ ] Plugin system
-- [ ] Desktop app
+Built with modern web technologies and best practices for client-side video editing.
 
 ---
 
-<div align="center">
-Made with ❤️ by the AutoCut Team
-
-⭐ Star us on GitHub!
-</div>
+**Note**: This is a browser-based video editor demonstration. For production use, consider integrating backend processing or WebAssembly solutions like FFmpeg.wasm for more robust video export capabilities.

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoCut - Web Video Editor</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <h1>✂️ AutoCut</h1>
+            </div>
+            <div class="header-controls">
+                <button id="newProject" class="btn btn-primary">New Project</button>
+                <button id="exportBtn" class="btn btn-success">Export Video</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Sidebar - Tools -->
+            <aside class="sidebar-left">
+                <h3>Tools</h3>
+                <div class="tool-section">
+                    <h4>Import</h4>
+                    <label for="videoUpload" class="btn btn-secondary btn-block">
+                        Upload Video
+                        <input type="file" id="videoUpload" accept="video/*" hidden>
+                    </label>
+                </div>
+
+                <div class="tool-section">
+                    <h4>Edit Tools</h4>
+                    <button id="splitBtn" class="btn btn-secondary btn-block">Split Clip</button>
+                    <button id="deleteBtn" class="btn btn-secondary btn-block">Delete Clip</button>
+                    <button id="trimBtn" class="btn btn-secondary btn-block">Trim</button>
+                </div>
+
+                <div class="tool-section">
+                    <h4>Filters</h4>
+                    <button class="btn btn-secondary btn-block filter-btn" data-filter="none">None</button>
+                    <button class="btn btn-secondary btn-block filter-btn" data-filter="grayscale">Grayscale</button>
+                    <button class="btn btn-secondary btn-block filter-btn" data-filter="sepia">Sepia</button>
+                    <button class="btn btn-secondary btn-block filter-btn" data-filter="brightness">Brightness</button>
+                    <button class="btn btn-secondary btn-block filter-btn" data-filter="contrast">Contrast</button>
+                </div>
+
+                <div class="tool-section">
+                    <h4>Speed</h4>
+                    <label>Playback Speed:</label>
+                    <select id="speedSelect" class="form-control">
+                        <option value="0.5">0.5x</option>
+                        <option value="1" selected>1.0x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2.0x</option>
+                    </select>
+                </div>
+            </aside>
+
+            <!-- Center - Video Preview -->
+            <main class="preview-area">
+                <div class="video-container">
+                    <div id="dropZone" class="drop-zone">
+                        <p>Drag and drop a video file here or click Upload Video</p>
+                    </div>
+                    <video id="videoPlayer" class="video-player" controls></video>
+                    <canvas id="videoCanvas" class="video-canvas"></canvas>
+                </div>
+
+                <!-- Timeline -->
+                <div class="timeline-container">
+                    <div class="timeline-controls">
+                        <button id="playPauseBtn" class="btn btn-icon">▶</button>
+                        <button id="stopBtn" class="btn btn-icon">■</button>
+                        <span id="currentTime">00:00</span> / <span id="duration">00:00</span>
+                    </div>
+                    <div class="timeline">
+                        <div id="timelineTrack" class="timeline-track">
+                            <div id="playhead" class="playhead"></div>
+                            <div id="clipsContainer" class="clips-container"></div>
+                        </div>
+                        <div class="timeline-ruler" id="timelineRuler"></div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Sidebar - Properties -->
+            <aside class="sidebar-right">
+                <h3>Properties</h3>
+                <div class="property-section">
+                    <h4>Video Info</h4>
+                    <div id="videoInfo">
+                        <p>No video loaded</p>
+                    </div>
+                </div>
+
+                <div class="property-section">
+                    <h4>Clip Settings</h4>
+                    <label>Volume:</label>
+                    <input type="range" id="volumeSlider" min="0" max="100" value="100" class="slider">
+                    <span id="volumeValue">100%</span>
+
+                    <label>Opacity:</label>
+                    <input type="range" id="opacitySlider" min="0" max="100" value="100" class="slider">
+                    <span id="opacityValue">100%</span>
+                </div>
+
+                <div class="property-section">
+                    <h4>Export Settings</h4>
+                    <label>Format:</label>
+                    <select id="formatSelect" class="form-control">
+                        <option value="mp4">MP4</option>
+                        <option value="webm">WebM</option>
+                    </select>
+
+                    <label>Quality:</label>
+                    <select id="qualitySelect" class="form-control">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Processing...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/video-editor.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
