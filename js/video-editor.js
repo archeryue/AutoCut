@@ -39,9 +39,23 @@ class VideoEditor {
             this.createDefaultClip();
         });
 
+        this.video.addEventListener('loadeddata', () => {
+            // Draw first frame immediately
+            this.applyFilters();
+        });
+
         this.video.addEventListener('timeupdate', () => {
             this.currentTime = this.video.currentTime;
-            this.applyFilters();
+            if (!this.isPlaying) {
+                this.applyFilters();
+            }
+        });
+
+        this.video.addEventListener('seeked', () => {
+            // Update canvas when seeking while paused
+            if (!this.isPlaying) {
+                this.applyFilters();
+            }
         });
 
         this.video.addEventListener('play', () => {
