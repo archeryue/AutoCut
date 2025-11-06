@@ -189,9 +189,13 @@ async function loadVideoFile(file) {
     try {
         console.log('Loading video:', file.name, 'Size:', file.size, 'Type:', file.type);
 
-        // Create MP4Clip from file
-        console.log('Creating MP4Clip...');
-        const clip = new MP4Clip(file);
+        // Convert File to ReadableStream for MP4Clip
+        console.log('Converting file to stream...');
+        const stream = file.stream();
+
+        // Create MP4Clip from stream
+        console.log('Creating MP4Clip from stream...');
+        const clip = new MP4Clip(stream);
         console.log('MP4Clip created, waiting for ready...');
         await clip.ready;
         console.log('MP4Clip ready!');
