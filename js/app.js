@@ -472,8 +472,11 @@ async function playbackLoop() {
     if (state.currentTime >= totalDuration) {
         state.currentTime = totalDuration;
         pause();
+        console.log('Playback ended');
         return;
     }
+
+    console.log('Playback loop - currentTime:', state.currentTime, 'totalDuration:', totalDuration);
 
     // Render frame (await to ensure frame is drawn)
     await renderFrame(state.currentTime);
@@ -505,6 +508,7 @@ async function renderFrame(time) {
         // Clear canvas
         state.ctx.fillStyle = '#000';
         state.ctx.fillRect(0, 0, state.canvas.width, state.canvas.height);
+        console.log('No active sprite at time', time);
         return;
     }
 
@@ -512,10 +516,22 @@ async function renderFrame(time) {
         // Calculate time within sprite
         const spriteTime = time - activeSprite.startTime;
 
+        console.log('Rendering frame:', {
+            timelineTime: time,
+            spriteStartTime: activeSprite.startTime,
+            spriteDuration: activeSprite.duration,
+            spriteTime: spriteTime,
+            spriteOffset: activeSprite.sprite.time.offset
+        });
+
         // Get frame from sprite
         const result = await activeSprite.sprite.offscreenRender(spriteTime);
 
+        console.log('Render result:', result);
+
         if (result.video) {
+            console.log('Drawing video frame to canvas');
+
             // Clear canvas
             state.ctx.fillStyle = '#000';
             state.ctx.fillRect(0, 0, state.canvas.width, state.canvas.height);
@@ -533,6 +549,8 @@ async function renderFrame(time) {
             result.video.close();
 
             state.ctx.globalAlpha = 1.0;
+        } else {
+            console.log('No video frame in result');
         }
     } catch (error) {
         console.error('Error rendering frame:', error);
