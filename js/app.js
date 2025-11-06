@@ -189,9 +189,14 @@ async function loadVideoFile(file) {
                 duration: meta.duration, // microseconds
                 width: meta.width,
                 height: meta.height,
-                size: file.size
+                size: file.size,
+                // Audio info - try to get sample rate (default to 48000 if not available)
+                audioSampleRate: meta.audioSampleRate || 48000,
+                audioChannels: meta.audioChannels || 2
             }
         };
+
+        console.log('Clip metadata:', meta);
 
         state.materials.push(material);
 
@@ -568,27 +573,23 @@ async function renderFrame(time) {
             console.log('No video frame in result - result.video is:', result.video);
         }
 
-        // Handle audio (result.audio is an array of AudioData)
+        // Handle audio (result.audio is an array of Float32Arrays - one per channel)
         if (result.audio && Array.isArray(result.audio) && result.audio.length > 0) {
-            console.log('Audio frames available:', result.audio.length);
-            console.log('Audio array content:', result.audio);
-            console.log('First audio element type:', typeof result.audio[0]);
-            console.log('First audio element:', result.audio[0]);
+            console.log('Audio frames available:', result.audio.length, 'channels');
 
-            for (const audioData of result.audio) {
-                if (audioData && audioData.numberOfChannels !== undefined) {
-                    await playAudioFrame(audioData);
-                } else {
-                    console.warn('Skipping invalid audio data:', audioData);
-                }
-            }
+            // Get audio metadata from the active sprite's material
+            const material = state.materials.find(m => m.id === activeSprite.materialId);
+            const sampleRate = material ? material.metadata.audioSampleRate : 48000;
+
+            // Play the audio samples
+            await playAudioSamples(result.audio, sampleRate);
         }
     } catch (error) {
         console.error('Error rendering frame:', error);
     }
 }
 
-async function playAudioFrame(audioData) {
+async function playAudioSamples(channelSamples, sampleRate) {
     try {
         // Create AudioContext if not exists
         if (!state.audioContext) {
@@ -601,42 +602,16 @@ async function playAudioFrame(audioData) {
             await state.audioContext.resume();
         }
 
-        // Get audio properties
-        const numberOfChannels = audioData.numberOfChannels;
-        const length = audioData.numberOfFrames;
-        const sampleRate = audioData.sampleRate;
+        // channelSamples is an array of Float32Arrays, one per channel
+        const numberOfChannels = channelSamples.length;
+        const length = channelSamples[0].length;
 
-        console.log('Audio data info:', {
+        console.log('Playing audio:', {
             numberOfChannels,
             length,
             sampleRate,
-            format: audioData.format,
-            duration: audioData.duration,
-            timestamp: audioData.timestamp
+            duration: (length / sampleRate * 1000).toFixed(2) + 'ms'
         });
-
-        // Validate parameters
-        if (!Number.isFinite(numberOfChannels) || numberOfChannels <= 0) {
-            console.warn('Invalid numberOfChannels:', numberOfChannels);
-            if (audioData && typeof audioData.close === 'function') {
-                audioData.close();
-            }
-            return;
-        }
-        if (!Number.isFinite(length) || length <= 0) {
-            console.warn('Invalid length:', length);
-            if (audioData && typeof audioData.close === 'function') {
-                audioData.close();
-            }
-            return;
-        }
-        if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
-            console.warn('Invalid sampleRate:', sampleRate);
-            if (audioData && typeof audioData.close === 'function') {
-                audioData.close();
-            }
-            return;
-        }
 
         // Create AudioBuffer
         const audioBuffer = state.audioContext.createBuffer(
@@ -645,22 +620,10 @@ async function playAudioFrame(audioData) {
             sampleRate
         );
 
-        // Copy audio data to buffer
-        const copyOptions = {
-            planeIndex: 0,
-            frameOffset: 0,
-            frameCount: length,
-            format: audioData.format
-        };
-
+        // Copy samples to buffer
         for (let channel = 0; channel < numberOfChannels; channel++) {
-            const channelData = new Float32Array(length);
-            audioData.copyTo(channelData, { ...copyOptions, planeIndex: channel });
-            audioBuffer.copyToChannel(channelData, channel, 0);
+            audioBuffer.copyToChannel(channelSamples[channel], channel, 0);
         }
-
-        // Close AudioData to free memory
-        audioData.close();
 
         // Create source and play immediately
         const source = state.audioContext.createBufferSource();
@@ -668,17 +631,9 @@ async function playAudioFrame(audioData) {
         source.connect(state.audioContext.destination);
         source.start(0);
 
-        console.log('Audio frame played successfully');
+        console.log('Audio played successfully');
     } catch (error) {
-        console.error('Error playing audio frame:', error);
-        console.error('AudioData object:', audioData);
-        if (audioData && typeof audioData.close === 'function') {
-            try {
-                audioData.close();
-            } catch (closeError) {
-                console.error('Error closing AudioData:', closeError);
-            }
-        }
+        console.error('Error playing audio:', error);
     }
 }
 
