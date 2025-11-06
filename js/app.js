@@ -516,16 +516,20 @@ async function renderFrame(time) {
         // Calculate time within sprite
         const spriteTime = time - activeSprite.startTime;
 
+        // Calculate time in source clip (add offset for trimmed clips)
+        const sourceTime = activeSprite.sprite.time.offset + spriteTime;
+
         console.log('Rendering frame:', {
             timelineTime: time,
             spriteStartTime: activeSprite.startTime,
             spriteDuration: activeSprite.duration,
             spriteTime: spriteTime,
-            spriteOffset: activeSprite.sprite.time.offset
+            spriteOffset: activeSprite.sprite.time.offset,
+            sourceTime: sourceTime
         });
 
-        // Get frame from sprite
-        const result = await activeSprite.sprite.offscreenRender(spriteTime);
+        // Get frame from clip (use tick for preview, not offscreenRender)
+        const result = await activeSprite.clip.tick(sourceTime);
 
         console.log('Render result:', result);
 
