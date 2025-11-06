@@ -257,9 +257,11 @@ async function addMaterialToTimeline(material) {
         const sprite = new OffscreenSprite(material.clip);
 
         // Configure sprite timing
+        // NOTE: sprite.time.offset is the offset WITHIN the source clip (0 = start from beginning)
+        // The timeline position is stored separately in spriteState.startTime
         const duration = material.metadata.duration;
         sprite.time = {
-            offset: startPosition,
+            offset: 0,  // Start from beginning of clip
             duration: duration
         };
 
@@ -455,7 +457,7 @@ function stop() {
     document.getElementById('currentTime').textContent = '00:00';
 }
 
-function playbackLoop() {
+async function playbackLoop() {
     if (!state.isPlaying) return;
 
     const now = performance.now();
@@ -473,8 +475,8 @@ function playbackLoop() {
         return;
     }
 
-    // Render frame
-    renderFrame(state.currentTime);
+    // Render frame (await to ensure frame is drawn)
+    await renderFrame(state.currentTime);
 
     // Update UI
     updatePlayhead();
@@ -614,7 +616,7 @@ function splitClip() {
     };
     sprite2.sprite = new OffscreenSprite(sprite.clip);
     sprite2.sprite.time = {
-        offset: sprite2.startTime,
+        offset: splitPoint,  // Offset WITHIN the source clip (where the split happened)
         duration: sprite2.duration
     };
     sprite2.sprite.opacity = sprite.opacity;
@@ -647,10 +649,10 @@ function deleteClip() {
     // Remove sprite
     state.sprites.splice(spriteIndex, 1);
 
-    // Shift subsequent sprites
+    // Shift subsequent sprites on timeline
+    // NOTE: We only shift startTime (timeline position), not sprite.time.offset (source clip offset)
     for (let i = spriteIndex; i < state.sprites.length; i++) {
         state.sprites[i].startTime -= deletedDuration;
-        state.sprites[i].sprite.time.offset = state.sprites[i].startTime;
     }
 
     state.selectedSpriteId = null;
