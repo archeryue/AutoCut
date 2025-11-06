@@ -79,6 +79,11 @@ function setupEventListeners() {
     document.addEventListener('mousemove', handleTimelineMouseMove);
     document.addEventListener('mouseup', handleTimelineMouseUp);
 
+    // Video progress bar interaction
+    const progressBar = document.querySelector('.video-progress-bar');
+    progressBar.addEventListener('click', handleProgressBarClick);
+    progressBar.addEventListener('mousedown', handleProgressBarMouseDown);
+
     // Export
     document.getElementById('exportBtn').addEventListener('click', exportVideo);
 
@@ -348,8 +353,80 @@ function updatePlayhead() {
  */
 function updateTimeDisplay() {
     const currentTime = editor.video.currentTime;
+    const duration = editor.video.duration;
+
     document.getElementById('currentTime').textContent = formatTime(currentTime);
     updatePlayhead();
+    updateProgressBar(currentTime, duration);
+}
+
+/**
+ * Update progress bar
+ */
+function updateProgressBar(currentTime, duration) {
+    if (!duration || duration === 0) return;
+
+    const percent = (currentTime / duration) * 100;
+    const progressFilled = document.getElementById('videoProgressFilled');
+    const progressHandle = document.getElementById('videoProgressHandle');
+
+    if (progressFilled) {
+        progressFilled.style.width = percent + '%';
+    }
+    if (progressHandle) {
+        progressHandle.style.left = percent + '%';
+    }
+}
+
+/**
+ * Handle progress bar click
+ */
+function handleProgressBarClick(e) {
+    if (!editor.video || !editor.video.duration) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = x / rect.width;
+    const newTime = percent * editor.video.duration;
+
+    editor.video.currentTime = newTime;
+}
+
+/**
+ * Handle progress bar mouse down for dragging
+ */
+let isProgressBarDragging = false;
+
+function handleProgressBarMouseDown(e) {
+    if (!editor.video || !editor.video.duration) return;
+
+    isProgressBarDragging = true;
+    handleProgressBarClick(e);
+
+    document.addEventListener('mousemove', onProgressBarDrag);
+    document.addEventListener('mouseup', onProgressBarDragEnd);
+}
+
+function onProgressBarDrag(e) {
+    if (!isProgressBarDragging) return;
+
+    const progressBar = document.querySelector('.video-progress-bar');
+    const rect = progressBar.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+
+    // Clamp to bounds
+    x = Math.max(0, Math.min(x, rect.width));
+
+    const percent = x / rect.width;
+    const newTime = percent * editor.video.duration;
+
+    editor.video.currentTime = newTime;
+}
+
+function onProgressBarDragEnd() {
+    isProgressBarDragging = false;
+    document.removeEventListener('mousemove', onProgressBarDrag);
+    document.removeEventListener('mouseup', onProgressBarDragEnd);
 }
 
 /**
@@ -452,14 +529,111 @@ function applyFilter(filterName) {
  * Export video
  */
 async function exportVideo() {
+    if (!editor.video || !editor.canvas) {
+        alert('Please load a video first');
+        return;
+    }
+
     const format = document.getElementById('formatSelect').value;
     const quality = document.getElementById('qualitySelect').value;
 
-    const config = editor.getExportConfig();
+    const confirmed = confirm('Export video with current edits?\n\nThis will play through your video and record the canvas output.\n\nNote: This may take some time depending on video length.');
 
-    alert(`Export functionality:\n\nFormat: ${format}\nQuality: ${quality}\n\nIn a production environment, this would use FFmpeg.wasm or a backend service to process and export the video with your edits.\n\nExport config:\n${JSON.stringify(config, null, 2)}`);
+    if (!confirmed) return;
 
-    console.log('Export config:', config);
+    showLoading(true);
+
+    try {
+        // Determine video mime type and quality settings
+        let mimeType = 'video/webm;codecs=vp9';
+        let videoBitsPerSecond = 2500000; // 2.5 Mbps
+
+        if (format === 'mp4') {
+            // Try MP4, fallback to webm if not supported
+            if (MediaRecorder.isTypeSupported('video/mp4')) {
+                mimeType = 'video/mp4';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
+                mimeType = 'video/webm;codecs=h264';
+            }
+        }
+
+        // Adjust quality
+        if (quality === 'high') {
+            videoBitsPerSecond = 5000000; // 5 Mbps
+        } else if (quality === 'low') {
+            videoBitsPerSecond = 1000000; // 1 Mbps
+        }
+
+        console.log('Starting export with:', { mimeType, videoBitsPerSecond });
+
+        // Get canvas stream
+        const canvasStream = editor.canvas.captureStream(30); // 30 fps
+
+        // Add audio from video if available
+        if (editor.video.mozCaptureStream) {
+            const audioStream = editor.video.mozCaptureStream();
+            const audioTracks = audioStream.getAudioTracks();
+            audioTracks.forEach(track => canvasStream.addTrack(track));
+        } else if (editor.video.captureStream) {
+            const audioStream = editor.video.captureStream();
+            const audioTracks = audioStream.getAudioTracks();
+            audioTracks.forEach(track => canvasStream.addTrack(track));
+        }
+
+        // Create MediaRecorder
+        const mediaRecorder = new MediaRecorder(canvasStream, {
+            mimeType: mimeType,
+            videoBitsPerSecond: videoBitsPerSecond
+        });
+
+        const chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                chunks.push(e.data);
+            }
+        };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(chunks, { type: mimeType });
+            const url = URL.createObjectURL(blob);
+
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `autocut-export-${Date.now()}.${format === 'mp4' ? 'mp4' : 'webm'}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            URL.revokeObjectURL(url);
+
+            showLoading(false);
+            alert('Video exported successfully!');
+            console.log('Export complete');
+        };
+
+        // Start recording
+        mediaRecorder.start();
+
+        // Play through the video
+        const originalTime = editor.video.currentTime;
+        editor.video.currentTime = 0;
+
+        await editor.video.play();
+
+        // Stop recording when video ends
+        editor.video.onended = () => {
+            mediaRecorder.stop();
+            editor.video.currentTime = originalTime;
+            editor.video.onended = null;
+        };
+
+    } catch (error) {
+        showLoading(false);
+        alert('Error exporting video: ' + error.message);
+        console.error('Export error:', error);
+    }
 }
 
 /**
