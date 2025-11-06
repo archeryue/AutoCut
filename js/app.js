@@ -526,6 +526,42 @@ function applyFilter(filterName) {
 }
 
 /**
+ * Show/hide export progress
+ */
+function showExportProgress(show) {
+    const exportProgress = document.getElementById('exportProgress');
+    const loadingText = document.getElementById('loadingText');
+
+    if (show) {
+        exportProgress.classList.remove('hidden');
+        loadingText.textContent = 'Exporting Video...';
+    } else {
+        exportProgress.classList.add('hidden');
+        loadingText.textContent = 'Processing...';
+    }
+}
+
+/**
+ * Update export progress
+ */
+function updateExportProgress(currentTime, duration) {
+    const percent = Math.round((currentTime / duration) * 100);
+    const progressFilled = document.getElementById('exportProgressFilled');
+    const progressText = document.getElementById('exportProgressText');
+    const timeText = document.getElementById('exportTimeText');
+
+    if (progressFilled) {
+        progressFilled.style.width = percent + '%';
+    }
+    if (progressText) {
+        progressText.textContent = percent + '%';
+    }
+    if (timeText) {
+        timeText.textContent = formatTime(currentTime) + ' / ' + formatTime(duration);
+    }
+}
+
+/**
  * Export video
  */
 async function exportVideo() {
@@ -542,6 +578,8 @@ async function exportVideo() {
     if (!confirmed) return;
 
     showLoading(true);
+    showExportProgress(true);
+    updateExportProgress(0, editor.video.duration);
 
     try {
         // Determine video mime type and quality settings
@@ -620,6 +658,12 @@ async function exportVideo() {
         const originalTime = editor.video.currentTime;
         editor.video.currentTime = 0;
 
+        // Update progress as video plays
+        const progressUpdateHandler = () => {
+            updateExportProgress(editor.video.currentTime, editor.video.duration);
+        };
+        editor.video.addEventListener('timeupdate', progressUpdateHandler);
+
         await editor.video.play();
 
         // Stop recording when video ends
@@ -627,10 +671,13 @@ async function exportVideo() {
             mediaRecorder.stop();
             editor.video.currentTime = originalTime;
             editor.video.onended = null;
+            editor.video.removeEventListener('timeupdate', progressUpdateHandler);
+            showExportProgress(false);
         };
 
     } catch (error) {
         showLoading(false);
+        showExportProgress(false);
         alert('Error exporting video: ' + error.message);
         console.error('Export error:', error);
     }
