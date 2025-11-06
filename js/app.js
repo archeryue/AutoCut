@@ -32,18 +32,29 @@ const state = {
 // ==================== Initialization ====================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('AutoCut v2.0 initializing...');
+    console.log('=== AutoCut v2.0 Initializing ===');
+    console.log('WebCodecs support:', {
+        VideoEncoder: !!window.VideoEncoder,
+        VideoDecoder: !!window.VideoDecoder,
+        AudioEncoder: !!window.AudioEncoder,
+        AudioDecoder: !!window.AudioDecoder
+    });
 
     // Check WebCodecs support
     if (!window.VideoEncoder || !window.VideoDecoder) {
+        console.error('WebCodecs not supported!');
         alert('WebCodecs API is not supported in your browser. Please use Chrome 94+ or Edge 94+.');
         return;
     }
 
+    console.log('Initializing canvas...');
     initializeCanvas();
+
+    console.log('Setting up event listeners...');
     setupEventListeners();
 
-    console.log('AutoCut initialized successfully');
+    console.log('=== AutoCut initialized successfully ===');
+    console.log('Debug: window.autoCutDebug available for inspection');
 });
 
 // ==================== Canvas Setup ====================
@@ -117,8 +128,13 @@ function setupFileUpload() {
     const videoUpload = document.getElementById('videoUpload');
     const dropZone = document.getElementById('dropZone');
 
+    console.log('Setting up file upload handlers...');
+    console.log('videoUpload element:', videoUpload);
+    console.log('dropZone element:', dropZone);
+
     // File input change
     videoUpload.addEventListener('change', handleFileSelect);
+    console.log('File input change listener added');
 
     // Drag and drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -146,15 +162,20 @@ function preventDefaults(e) {
 }
 
 async function handleFileSelect(e) {
+    console.log('handleFileSelect triggered!', e);
     const files = Array.from(e.target.files);
+    console.log('Files selected:', files.length, files);
+
     for (const file of files) {
         await loadVideoFile(file);
     }
 }
 
 async function handleDrop(e) {
+    console.log('handleDrop triggered!', e);
     const dt = e.dataTransfer;
     const files = Array.from(dt.files).filter(f => f.type.startsWith('video/'));
+    console.log('Files dropped:', files.length, files);
 
     for (const file of files) {
         await loadVideoFile(file);
@@ -162,14 +183,18 @@ async function handleDrop(e) {
 }
 
 async function loadVideoFile(file) {
+    console.log('loadVideoFile called with:', file);
     showLoading(true, 'Loading video...');
 
     try {
-        console.log('Loading video:', file.name);
+        console.log('Loading video:', file.name, 'Size:', file.size, 'Type:', file.type);
 
         // Create MP4Clip from file
+        console.log('Creating MP4Clip...');
         const clip = new MP4Clip(file);
+        console.log('MP4Clip created, waiting for ready...');
         await clip.ready;
+        console.log('MP4Clip ready!');
 
         // Get metadata
         const meta = clip.meta;
