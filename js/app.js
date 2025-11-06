@@ -26,7 +26,31 @@ function initializeEditor() {
     editor = new VideoEditor();
     editor.init(videoPlayer, videoCanvas);
 
+    // Sync play/pause button with actual video state
+    setupVideoStateListeners(videoPlayer);
+
     console.log('AutoCut Video Editor initialized');
+}
+
+/**
+ * Setup listeners to keep UI in sync with video state
+ */
+function setupVideoStateListeners(video) {
+    video.addEventListener('play', updatePlayPauseButton);
+    video.addEventListener('pause', updatePlayPauseButton);
+    video.addEventListener('ended', updatePlayPauseButton);
+}
+
+/**
+ * Update play/pause button to match video state
+ */
+function updatePlayPauseButton() {
+    const btn = document.getElementById('playPauseBtn');
+    if (!btn || !editor.video) return;
+
+    // Check actual video state, not just editor.isPlaying
+    const isPlaying = !editor.video.paused && !editor.video.ended;
+    btn.textContent = isPlaying ? '⏸' : '▶';
 }
 
 /**
@@ -437,8 +461,9 @@ function togglePlayPause() {
 
     editor.togglePlayPause();
 
-    const btn = document.getElementById('playPauseBtn');
-    btn.textContent = editor.isPlaying ? '⏸' : '▶';
+    // Button will be updated automatically by video events
+    // but update immediately for instant feedback
+    updatePlayPauseButton();
 }
 
 /**
@@ -449,8 +474,8 @@ function stopPlayback() {
 
     editor.stop();
 
-    const btn = document.getElementById('playPauseBtn');
-    btn.textContent = '▶';
+    // Button will be updated automatically by video pause event
+    updatePlayPauseButton();
 }
 
 /**
