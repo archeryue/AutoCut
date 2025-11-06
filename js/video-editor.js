@@ -41,6 +41,9 @@ class VideoEditor {
 
         this.video.addEventListener('loadeddata', () => {
             // Draw first frame immediately
+            console.log('Video loadeddata event - drawing first frame');
+            console.log('Video dimensions:', this.video.videoWidth, 'x', this.video.videoHeight);
+            console.log('Canvas dimensions:', this.canvas.width, 'x', this.canvas.height);
             this.applyFilters();
         });
 
@@ -224,7 +227,15 @@ class VideoEditor {
      * Apply visual filters to video
      */
     applyFilters() {
-        if (!this.video || !this.canvas || !this.ctx) return;
+        if (!this.video || !this.canvas || !this.ctx) {
+            console.warn('applyFilters: missing video, canvas, or context');
+            return;
+        }
+
+        if (this.video.readyState < 2) {
+            console.warn('applyFilters: video not ready yet, readyState:', this.video.readyState);
+            return;
+        }
 
         // Draw current video frame to canvas
         this.ctx.save();

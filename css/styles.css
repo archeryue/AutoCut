@@ -101,6 +101,7 @@ body {
     background: #000;
     position: relative;
     min-height: 0;
+    overflow: hidden;
 }
 
 .drop-zone {
@@ -129,23 +130,22 @@ body {
 }
 
 .video-player {
-    max-width: 100%;
-    max-height: 100%;
-    display: none;
     position: absolute;
-    visibility: hidden;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .video-canvas {
-    max-width: 100%;
-    max-height: 100%;
+    max-width: 90%;
+    max-height: 90%;
     display: none;
     object-fit: contain;
-}
-
-.video-player.active {
-    display: block;
-    visibility: hidden;
+    position: relative;
+    z-index: 1;
 }
 
 .video-canvas.active {

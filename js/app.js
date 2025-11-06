@@ -146,10 +146,18 @@ async function handleFile(file) {
         const metadata = await editor.loadVideo(file);
         currentVideo = metadata;
 
-        // Hide drop zone, show video player and canvas
-        document.getElementById('dropZone').style.display = 'none';
-        document.getElementById('videoPlayer').classList.add('active');
-        document.getElementById('videoCanvas').classList.add('active');
+        console.log('Video loaded, metadata:', metadata);
+
+        // Hide drop zone, show canvas
+        const dropZone = document.getElementById('dropZone');
+        const canvas = document.getElementById('videoCanvas');
+        const videoPlayer = document.getElementById('videoPlayer');
+
+        dropZone.style.display = 'none';
+        canvas.classList.add('active');
+
+        console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+        console.log('Canvas display:', window.getComputedStyle(canvas).display);
 
         // Update video info
         updateVideoInfo(metadata);
@@ -158,7 +166,7 @@ async function handleFile(file) {
         renderTimeline();
 
         showLoading(false);
-        console.log('Video loaded successfully:', metadata);
+        console.log('Video setup complete');
     } catch (error) {
         showLoading(false);
         alert('Error loading video: ' + error.message);
