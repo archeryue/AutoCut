@@ -128,14 +128,26 @@ body {
     padding: 20px;
 }
 
-.video-player,
+.video-player {
+    max-width: 100%;
+    max-height: 100%;
+    display: none;
+    position: absolute;
+    visibility: hidden;
+}
+
 .video-canvas {
     max-width: 100%;
     max-height: 100%;
     display: none;
+    object-fit: contain;
 }
 
-.video-player.active,
+.video-player.active {
+    display: block;
+    visibility: hidden;
+}
+
 .video-canvas.active {
     display: block;
 }
