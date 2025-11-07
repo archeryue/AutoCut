@@ -164,6 +164,66 @@ test.describe('AutoCut Features', () => {
     console.log('✅ Playback speed changed to 2x');
   });
 
+  test('should export video with playback speed', async ({ page }) => {
+    const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
+
+    // Capture browser console logs
+    page.on('console', msg => {
+      const text = msg.text();
+      if (text.includes('[EXPORT]') || text.includes('export') || text.includes('Export')) {
+        console.log('BROWSER:', text);
+      }
+    });
+
+    // Upload video
+    await page.locator('#videoUpload').setInputFiles(testVideoPath);
+    await page.waitForSelector('.clip', { timeout: 30000 });
+
+    // Select the clip and change speed to 2x
+    await page.locator('.clip').first().click();
+    await page.waitForTimeout(500);
+    await page.locator('[data-tab="filters"]').click();
+    await page.waitForTimeout(500);
+    await page.locator('#speedSelect').selectOption('2');
+    await page.waitForTimeout(500);
+
+    console.log('✅ Playback speed set to 2x, ready to export');
+
+    // Setup dialog handler
+    page.once('dialog', async dialog => {
+      console.log('Dialog appeared:', dialog.message());
+      await dialog.accept();
+      console.log('Dialog accepted');
+    });
+
+    // Setup download listener
+    const downloadPromise = page.waitForEvent('download', { timeout: 180000 });
+
+    // Click export button
+    await page.locator('#exportBtn').click();
+
+    // Wait for export modal
+    await page.waitForSelector('#exportModal:not(.hidden)', { timeout: 5000 });
+
+    console.log('🎬 Export with 2x playback speed started...');
+
+    // Wait for download
+    const download = await downloadPromise;
+
+    // Save the file
+    const downloadsPath = path.resolve(__dirname, '../downloads');
+    const filePath = path.join(downloadsPath, download.suggestedFilename());
+    await download.saveAs(filePath);
+
+    console.log('✅ Video with 2x playback speed exported:', filePath);
+
+    // Check file exists and has content
+    const stats = fs.statSync(filePath);
+    expect(stats.size).toBeGreaterThan(1000); // At least 1KB
+
+    console.log(`✅ Export file size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+  });
+
   test('should export video with filters', async ({ page }) => {
     const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
 
