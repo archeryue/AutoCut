@@ -166,6 +166,14 @@ test.describe('AutoCut Features', () => {
   test('should export video with filters', async ({ page }) => {
     const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
 
+    // Capture browser console logs
+    page.on('console', msg => {
+      const text = msg.text();
+      if (text.includes('[EXPORT]') || text.includes('export') || text.includes('Export')) {
+        console.log('BROWSER:', text);
+      }
+    });
+
     // Upload and split video
     await page.locator('#videoUpload').setInputFiles(testVideoPath);
     await page.waitForSelector('.clip', { timeout: 30000 });
@@ -191,16 +199,20 @@ test.describe('AutoCut Features', () => {
 
     console.log('✅ Filter applied to first clip, ready to export');
 
-    // Listen for download (increase timeout for large video processing)
+    // Setup dialog handler as a promise that auto-accepts
+    page.once('dialog', async dialog => {
+      console.log('Dialog appeared:', dialog.message());
+      await dialog.accept();
+      console.log('Dialog accepted');
+    });
+
+    // Setup download listener (increase timeout for large video processing)
     const downloadPromise = page.waitForEvent('download', { timeout: 180000 }); // 3 minutes
 
-    // Setup dialog handler BEFORE clicking export
-    page.on('dialog', dialog => dialog.accept());
-
-    // Click export button
+    // Click export button (this will trigger the confirm dialog which auto-accepts)
     await page.locator('#exportBtn').click();
 
-    // Wait for export modal (if not already shown)
+    // Wait for export modal to appear
     await page.waitForSelector('#exportModal:not(.hidden)', { timeout: 5000 });
 
     console.log('🎬 Export started, waiting for completion...');

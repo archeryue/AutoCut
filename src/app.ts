@@ -1205,23 +1205,44 @@ function updateFilterUI(): void {
 // ==================== Export ====================
 
 async function exportVideo(): Promise<void> {
+    console.log('[EXPORT] exportVideo() called');
+    console.log('[EXPORT] Number of sprites:', state.sprites.length);
+
     if (state.sprites.length === 0) {
         alert('No clips to export');
         return;
     }
 
+    // Check WebCodecs support
+    if (!window.VideoEncoder || !window.VideoDecoder) {
+        alert('WebCodecs is not supported in this browser. Please use Chrome 94+ or Edge 94+');
+        console.error('[EXPORT] WebCodecs not available');
+        return;
+    }
+    console.log('[EXPORT] WebCodecs available:', {
+        VideoEncoder: !!window.VideoEncoder,
+        VideoDecoder: !!window.VideoDecoder
+    });
+
+    console.log('[EXPORT] Showing confirm dialog...');
     if (!confirm('Export video with current edits? This may take some time.')) {
+        console.log('[EXPORT] User cancelled export');
+        return;
+    }
+    console.log('[EXPORT] User confirmed export');
+
+    const modal = document.getElementById('exportModal');
+    if (!modal) {
+        console.log('[EXPORT] ERROR: Export modal not found!');
         return;
     }
 
-    const modal = document.getElementById('exportModal');
-    if (!modal) return;
-
+    console.log('[EXPORT] Showing export modal');
     modal.classList.remove('hidden');
 
     try {
-        console.log('Starting export...');
-        console.log('Timeline sprites:', state.sprites.map(s => ({
+        console.log('[EXPORT] Starting export process...');
+        console.log('[EXPORT] Timeline sprites:', state.sprites.map(s => ({
             id: s.id,
             startTime: s.startTime,
             duration: s.duration,
@@ -1265,12 +1286,19 @@ async function exportVideo(): Promise<void> {
             const hasFilters = hasActiveFilters(spriteState.filters);
 
             if (hasFilters) {
-                console.log('Cloning clip for filtered sprite:', spriteState.id);
+                console.log('[EXPORT] Cloning clip for filtered sprite:', spriteState.id);
+                const cloneStart = performance.now();
                 clipToUse = await spriteState.clip.clone();
+                console.log('[EXPORT] Clone completed in', (performance.now() - cloneStart).toFixed(2), 'ms');
+
+                console.log('[EXPORT] Applying filters to cloned clip');
+                const filterStart = performance.now();
                 await applyFiltersToClip(clipToUse, spriteState.filters);
+                console.log('[EXPORT] Filters applied in', (performance.now() - filterStart).toFixed(2), 'ms');
             }
 
             // Create a new OffscreenSprite for export
+            console.log('[EXPORT] Creating OffscreenSprite for export');
             const exportSprite = new OffscreenSprite(clipToUse);
 
             // Configure time - offset is where to start in source, duration is how much to use
@@ -1283,26 +1311,37 @@ async function exportVideo(): Promise<void> {
             exportSprite.opacity = spriteState.opacity;
 
             // Add sprite to combinator
+            console.log('[EXPORT] Adding sprite to combinator...');
+            const addSpriteStart = performance.now();
             await combinator.addSprite(exportSprite);
+            console.log('[EXPORT] Sprite added in', (performance.now() - addSpriteStart).toFixed(2), 'ms');
 
             exportPosition += spriteState.duration;
             updateExportProgress((i / state.sprites.length) * 50); // First 50% for adding sprites
         }
 
-        console.log('All sprites added to combinator. Total duration:', exportPosition / 1000000, 'seconds');
+        console.log('[EXPORT] All sprites added to combinator. Total duration:', exportPosition / 1000000, 'seconds');
 
         // Get output stream
-        console.log('Generating output stream...');
+        console.log('[EXPORT] Calling combinator.output() to generate stream...');
+        const outputStart = performance.now();
         const stream = combinator.output();
+        console.log('[EXPORT] Stream generated in', (performance.now() - outputStart).toFixed(2), 'ms');
 
         // Collect chunks
         const chunks: Uint8Array[] = [];
         const reader = stream.getReader();
+        console.log('[EXPORT] Stream reader created, starting to read chunks...');
 
         let done = false;
         let chunkCount = 0;
+        let lastLogTime = performance.now();
+        const readStart = performance.now();
+
         while (!done) {
+            const chunkReadStart = performance.now();
             const { value, done: readerDone } = await reader.read();
+            const chunkReadTime = performance.now() - chunkReadStart;
             done = readerDone;
 
             if (value) {
@@ -1313,7 +1352,14 @@ async function exportVideo(): Promise<void> {
                 const progress = 50 + Math.min((chunkCount / 100) * 49, 49);
                 updateExportProgress(progress);
 
-                console.log(`Encoded chunk ${chunkCount}, size: ${value.byteLength} bytes`);
+                // Log every chunk or every 2 seconds
+                const now = performance.now();
+                if (chunkCount <= 10 || (now - lastLogTime) > 2000) {
+                    console.log(`[EXPORT] Chunk ${chunkCount}: ${value.byteLength} bytes (read took ${chunkReadTime.toFixed(2)}ms)`);
+                    lastLogTime = now;
+                }
+            } else if (readerDone) {
+                console.log(`[EXPORT] Stream complete after ${chunkCount} chunks in ${(performance.now() - readStart).toFixed(2)}ms`);
             }
         }
 
