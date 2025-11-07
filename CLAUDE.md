@@ -9,6 +9,27 @@ Guidance for Claude Code when working with AutoCut v2.0 - a WebAV-powered browse
 **Tests**: 67 tests (61 unit + 6 E2E) - ALL MUST PASS
 **Architecture**: Single-file app (src/app.ts) using WebAV for video processing
 
+## 🚨 CRITICAL PRINCIPLE: Run Tests Yourself
+
+**NEVER ask the user to manually test features. ALWAYS run automated tests yourself.**
+
+### Testing Policy
+
+1. **After implementing ANY feature**: Run `npm test && npm run test:e2e` yourself
+2. **To verify functionality**: Use automated E2E tests (Playwright), not manual browser testing
+3. **Export verification**: E2E test checks export works - trust the test results
+4. **Debugging issues**: Use Playwright's screenshots/videos in `test-results/` directory
+5. **If tests fail**: Fix the code and re-run tests until they pass
+
+### Why This Matters
+
+- **User's time is valuable**: Don't waste it on tasks automation can handle
+- **Consistency**: Automated tests are reliable and repeatable
+- **Efficiency**: Tests run faster than manual verification
+- **Professionalism**: Testing is the developer's job, not the user's
+
+**Remember**: The user should ONLY need to manually test if ALL automated tests pass and you suspect an edge case not covered by tests. In that case, add a new automated test first!
+
 ## Development Commands
 
 ```bash
