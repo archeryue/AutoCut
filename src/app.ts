@@ -1299,10 +1299,11 @@ async function exportVideo(): Promise<void> {
 
             const spriteMaterial = state.materials.find(m => m.id === spriteState.materialId);
 
-            console.log(`Adding sprite ${i + 1}/${state.sprites.length}:`, {
+            console.log(`[EXPORT] Adding sprite ${i + 1}/${state.sprites.length}:`, {
                 clip: spriteMaterial?.name,
                 offset: spriteState.sprite.time.offset,
                 duration: spriteState.duration,
+                playbackRate: spriteState.sprite.time.playbackRate || 1.0,
                 exportPosition: exportPosition,
                 hasFilters: hasActiveFilters(spriteState.filters)
             });
@@ -1327,7 +1328,8 @@ async function exportVideo(): Promise<void> {
             // Configure time - offset is where to start in source, duration is how much to use
             exportSprite.time = {
                 offset: spriteState.sprite.time.offset, // Trim offset in source clip
-                duration: spriteState.duration // Duration to export
+                duration: spriteState.duration, // Duration to export
+                playbackRate: spriteState.sprite.time.playbackRate || 1.0 // Playback speed
             };
 
             // Apply opacity
