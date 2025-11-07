@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MockMP4Clip, MockOffscreenSprite, MockCombinator } from './mocks/webav.js';
+import { MockMP4Clip, MockOffscreenSprite, MockCombinator } from './mocks/webav';
 
 describe('Playback Rendering Issues', () => {
   describe('Issue 1: playbackLoop must await renderFrame', () => {

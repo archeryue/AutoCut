@@ -5,8 +5,10 @@
   "main": "index.html",
   "type": "module",
   "scripts": {
-    "start": "python -m http.server 8000",
-    "dev": "python -m http.server 8000",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui"
@@ -32,8 +34,12 @@
     "@webav/av-cliper": "^1.1.6"
   },
   "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@vitejs/plugin-vue": "^6.0.1",
     "@vitest/ui": "^1.0.0",
     "happy-dom": "^12.10.3",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.1",
     "vitest": "^1.0.0"
   }
 }

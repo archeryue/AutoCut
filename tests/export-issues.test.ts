@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MockMP4Clip, MockOffscreenSprite, MockCombinator } from './mocks/webav.js';
+import { MockMP4Clip, MockOffscreenSprite, MockCombinator } from './mocks/webav';
 
 describe('Export Issues - Black Frames and Wrong Order', () => {
   describe('Issue 1: Black frames at start - must create new sprites for export', () => {

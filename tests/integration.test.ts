@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MockMP4Clip, MockOffscreenSprite, MockCombinator } from './mocks/webav.js';
+import { MockMP4Clip, MockOffscreenSprite, MockCombinator } from './mocks/webav';
 
 // Mock WebAV imports
 vi.mock('https://cdn.jsdelivr.net/npm/@webav/av-cliper@1.1.6/+esm', () => ({

@@ -6,13 +6,13 @@
 import { vi } from 'vitest';
 
 // Mock WebCodecs APIs
-global.VideoEncoder = vi.fn();
-global.VideoDecoder = vi.fn();
-global.AudioEncoder = vi.fn();
-global.AudioDecoder = vi.fn();
+(global as any).VideoEncoder = vi.fn();
+(global as any).VideoDecoder = vi.fn();
+(global as any).AudioEncoder = vi.fn();
+(global as any).AudioDecoder = vi.fn();
 
 // Mock Canvas API
-global.HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
+HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
   fillStyle: '',
   fillRect: vi.fn(),
   clearRect: vi.fn(),
@@ -21,14 +21,14 @@ global.HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
   restore: vi.fn(),
   globalAlpha: 1,
   filter: 'none',
-}));
+})) as any;
 
 // Mock URL.createObjectURL
 global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
 global.URL.revokeObjectURL = vi.fn();
 
 // Mock fetch
-global.fetch = vi.fn(() =>
+(global as any).fetch = vi.fn(() =>
   Promise.resolve({
     ok: true,
     body: new ReadableStream(),
@@ -37,9 +37,8 @@ global.fetch = vi.fn(() =>
 
 // Mock File.prototype.stream() method
 if (typeof File !== 'undefined' && !File.prototype.stream) {
-  File.prototype.stream = function() {
+  (File.prototype as any).stream = function(this: File) {
     // Return a ReadableStream that provides the file content
-    const fileContent = this;
     return new ReadableStream({
       start(controller) {
         // Mock: Enqueue some data based on file content
