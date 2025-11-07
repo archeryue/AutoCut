@@ -1,0 +1,225 @@
+import { test, expect } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+test.describe('AutoCut Features', () => {
+  test.beforeEach(async ({ page }) => {
+    // Navigate to the app
+    await page.goto('http://localhost:8000');
+
+    // Wait for the app to load
+    await page.waitForSelector('#previewCanvas', { timeout: 10000 });
+  });
+
+  test('should load the application', async ({ page }) => {
+    // Check that the main elements are present
+    await expect(page.locator('h1')).toContainText('AutoCut');
+    await expect(page.locator('#previewCanvas')).toBeVisible();
+    // Video upload input is hidden, so just check it exists
+    await expect(page.locator('#videoUpload')).toHaveCount(1);
+  });
+
+  test('should upload a video file', async ({ page }) => {
+    const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
+
+    // Upload the video
+    const fileInput = page.locator('#videoUpload');
+    await fileInput.setInputFiles(testVideoPath);
+
+    // Wait for video to load (look for material in the list)
+    await page.waitForSelector('.material-item', { timeout: 30000 });
+
+    // Check that the material was added
+    const materialItems = page.locator('.material-item');
+    await expect(materialItems).toHaveCount(1);
+
+    // Check that it was added to timeline
+    await page.waitForSelector('.clip', { timeout: 10000 });
+    const clips = page.locator('.clip');
+    await expect(clips).toHaveCount(1);
+
+    console.log('✅ Video uploaded and added to timeline');
+  });
+
+  test('should split a clip on timeline', async ({ page }) => {
+    const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
+
+    // Upload video
+    await page.locator('#videoUpload').setInputFiles(testVideoPath);
+    await page.waitForSelector('.clip', { timeout: 30000 });
+
+    // Select the clip
+    await page.locator('.clip').first().click();
+    await page.waitForTimeout(500);
+
+    // Move playhead to middle of clip programmatically
+    await page.evaluate(() => {
+      // Access state from window.autoCutDebug
+      const state = (window as any).autoCutDebug?.state;
+      if (state && state.sprites.length > 0) {
+        const sprite = state.sprites[0];
+        // Set playhead to middle of first clip
+        state.currentTime = sprite.startTime + (sprite.duration / 2);
+        console.log('[TEST] Set currentTime to:', state.currentTime);
+        // Update UI
+        const playhead = document.getElementById('playhead');
+        if (playhead) {
+          const currentSec = state.currentTime / 1000000;
+          playhead.style.left = (currentSec * state.zoom) + 'px';
+        }
+      }
+    });
+
+    await page.waitForTimeout(500);
+
+    // Click split button
+    await page.locator('#splitBtn').click();
+    await page.waitForTimeout(1000);
+
+    // Check that we now have 2 clips
+    const clips = page.locator('.clip');
+    await expect(clips).toHaveCount(2);
+
+    console.log('✅ Clip split successfully - now have 2 clips');
+  });
+
+  test('should apply filter to specific clip', async ({ page }) => {
+    const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
+
+    // Upload video and split it
+    await page.locator('#videoUpload').setInputFiles(testVideoPath);
+    await page.waitForSelector('.clip', { timeout: 30000 });
+
+    // Select first clip
+    await page.locator('.clip').first().click();
+    await page.waitForTimeout(500);
+
+    // Move playhead to middle and split
+    await page.evaluate(() => {
+      const state = (window as any).autoCutDebug?.state;
+      if (state && state.sprites.length > 0) {
+        state.currentTime = state.sprites[0].startTime + (state.sprites[0].duration / 2);
+      }
+    });
+    await page.locator('#splitBtn').click();
+    await page.waitForTimeout(1000);
+
+    // Select first clip
+    await page.locator('.clip').first().click();
+    await page.waitForTimeout(500);
+
+    // Go to Filters tab
+    const filtersTab = page.locator('[data-tab="filters"]');
+    await filtersTab.click();
+    await page.waitForTimeout(500);
+
+    // Apply grayscale filter
+    const grayscaleBtn = page.locator('[data-filter="grayscale"]');
+    await grayscaleBtn.click();
+    await page.waitForTimeout(500);
+
+    // Check that grayscale button is now active
+    await expect(grayscaleBtn).toHaveClass(/active/);
+
+    console.log('✅ Grayscale filter applied to first clip');
+
+    // Select second clip and check it has no filter
+    await page.locator('.clip').nth(1).click();
+    await page.waitForTimeout(500);
+
+    const noneBtn = page.locator('[data-filter="none"]');
+    await expect(noneBtn).toHaveClass(/active/);
+
+    console.log('✅ Second clip has no filter (verified)');
+  });
+
+  test('should change playback speed', async ({ page }) => {
+    const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
+
+    // Upload video
+    await page.locator('#videoUpload').setInputFiles(testVideoPath);
+    await page.waitForSelector('.clip', { timeout: 30000 });
+
+    // Select the clip
+    await page.locator('.clip').first().click();
+    await page.waitForTimeout(500);
+
+    // Go to Filters tab
+    await page.locator('[data-tab="filters"]').click();
+    await page.waitForTimeout(500);
+
+    // Change speed to 2x
+    const speedSelect = page.locator('#speedSelect');
+    await speedSelect.selectOption('2');
+    await page.waitForTimeout(500);
+
+    // Verify speed was changed
+    const selectedValue = await speedSelect.inputValue();
+    expect(selectedValue).toBe('2');
+
+    console.log('✅ Playback speed changed to 2x');
+  });
+
+  test('should export video with filters', async ({ page }) => {
+    const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
+
+    // Upload and split video
+    await page.locator('#videoUpload').setInputFiles(testVideoPath);
+    await page.waitForSelector('.clip', { timeout: 30000 });
+
+    // Split the clip
+    await page.locator('.clip').first().click();
+    await page.evaluate(() => {
+      const state = (window as any).autoCutDebug?.state;
+      if (state && state.sprites.length > 0) {
+        state.currentTime = state.sprites[0].startTime + (state.sprites[0].duration / 2);
+      }
+    });
+    await page.locator('#splitBtn').click();
+    await page.waitForTimeout(1000);
+
+    // Apply filter to first clip only
+    await page.locator('.clip').first().click();
+    await page.waitForTimeout(500);
+    await page.locator('[data-tab="filters"]').click();
+    await page.waitForTimeout(500);
+    await page.locator('[data-filter="grayscale"]').click();
+    await page.waitForTimeout(500);
+
+    console.log('✅ Filter applied to first clip, ready to export');
+
+    // Listen for download (increase timeout for large video processing)
+    const downloadPromise = page.waitForEvent('download', { timeout: 180000 }); // 3 minutes
+
+    // Setup dialog handler BEFORE clicking export
+    page.on('dialog', dialog => dialog.accept());
+
+    // Click export button
+    await page.locator('#exportBtn').click();
+
+    // Wait for export modal (if not already shown)
+    await page.waitForSelector('#exportModal:not(.hidden)', { timeout: 5000 });
+
+    console.log('🎬 Export started, waiting for completion...');
+
+    // Wait for the download to complete
+    const download = await downloadPromise;
+
+    // Save the file
+    const downloadsPath = path.resolve(__dirname, '../downloads');
+    const filePath = path.join(downloadsPath, download.suggestedFilename());
+    await download.saveAs(filePath);
+
+    console.log('✅ Video exported successfully:', filePath);
+
+    // Check that file exists and has content
+    const fs = require('fs');
+    const stats = fs.statSync(filePath);
+    expect(stats.size).toBeGreaterThan(1000); // At least 1KB
+
+    console.log(`✅ Export file size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+  });
+});

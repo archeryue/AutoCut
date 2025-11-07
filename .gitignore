@@ -41,6 +41,8 @@ htmlcov/
 *.cover
 .hypothesis/
 .coverage.*
+test-results/
+downloads/
 
 # Firebase
 .firebase/

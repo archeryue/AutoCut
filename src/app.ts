@@ -898,13 +898,20 @@ function splitClip(): void {
     // Calculate split point
     const splitPoint = state.currentTime - sprite.startTime;
 
-    // Create two new sprites
+    // Create two new sprites - MUST create new OffscreenSprite for BOTH parts
+    // to avoid shared reference issues
     const sprite1: SpriteState = {
         ...sprite,
         id: generateId(),
         duration: splitPoint
     };
-    sprite1.sprite.time.duration = splitPoint;
+    // Create new sprite for first part (keep original offset)
+    sprite1.sprite = new OffscreenSprite(sprite.clip);
+    sprite1.sprite.time = {
+        offset: sprite.sprite.time.offset,  // Keep original offset
+        duration: splitPoint
+    };
+    sprite1.sprite.opacity = sprite.opacity;
 
     const sprite2: SpriteState = {
         ...sprite,
@@ -912,9 +919,11 @@ function splitClip(): void {
         startTime: sprite.startTime + splitPoint,
         duration: sprite.duration - splitPoint
     };
+    // Create new sprite for second part (offset by split point)
     sprite2.sprite = new OffscreenSprite(sprite.clip);
     sprite2.sprite.time = {
-        offset: splitPoint,  // Offset WITHIN the source clip (where the split happened)
+        // IMPORTANT: Add to existing offset, don't replace it
+        offset: sprite.sprite.time.offset + splitPoint,
         duration: sprite2.duration
     };
     sprite2.sprite.opacity = sprite.opacity;
@@ -1014,9 +1023,9 @@ function handleTimelineClick(e: MouseEvent): void {
         currentTimeEl.textContent = formatTime(state.currentTime / 1000000);
     }
 
-    // Deselect sprite
-    state.selectedSpriteId = null;
-    renderTimeline();
+    // Don't deselect sprite - user may want to keep selection while moving playhead
+    // state.selectedSpriteId = null;
+    // renderTimeline();
 }
 
 function updatePlayhead(): void {
