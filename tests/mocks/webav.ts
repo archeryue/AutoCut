@@ -45,6 +45,8 @@ export class MockMP4Clip {
       duration: 10000000, // 10 seconds in microseconds
       width: 1920,
       height: 1080,
+      audioSampleRate: 48000,
+      audioChanCount: 2,
     };
     this.ready = Promise.resolve();
   }

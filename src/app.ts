@@ -542,8 +542,14 @@ async function playbackLoop(): Promise<void> {
     const deltaMs = state.lastFrameTime !== null ? now - state.lastFrameTime : 0;
     state.lastFrameTime = now;
 
-    // Advance time (microseconds)
-    state.currentTime += deltaMs * 1000;
+    // Find active sprite to get its playback rate
+    const activeSprite = state.sprites.find(s =>
+        state.currentTime >= s.startTime && state.currentTime < (s.startTime + s.duration)
+    );
+    const playbackRate = activeSprite ? activeSprite.playbackRate : 1.0;
+
+    // Advance time (microseconds) - multiply by playback rate for speed control
+    state.currentTime += deltaMs * 1000 * playbackRate;
 
     // Check if reached end
     const totalDuration = getTotalDuration();
@@ -601,7 +607,8 @@ async function renderFrame(time: number): Promise<void> {
         const spriteTime = time - activeSprite.startTime;
 
         // Calculate time in source clip (add offset for trimmed clips)
-        const sourceTime = activeSprite.sprite.time.offset + spriteTime;
+        // Multiply spriteTime by playbackRate for speed control (2x = twice as fast through source)
+        const sourceTime = activeSprite.sprite.time.offset + (spriteTime * activeSprite.playbackRate);
 
         console.log('Rendering frame:', {
             timelineTime: time,
@@ -753,6 +760,99 @@ function applyFilters(filters: FilterSettings): void {
         state.ctx.drawImage(state.canvas, 0, 0);
         state.ctx.filter = 'none';
     }
+}
+
+/**
+ * Check if any filters are active (not default values)
+ */
+function hasActiveFilters(filters: FilterSettings): boolean {
+    return filters.grayscale ||
+           filters.sepia ||
+           filters.brightness !== 1.0 ||
+           filters.contrast !== 1.0 ||
+           filters.blur > 0;
+}
+
+/**
+ * Build CSS filter string from filter settings
+ */
+function buildFilterString(filters: FilterSettings): string {
+    let filterString = '';
+
+    if (filters.grayscale) {
+        filterString += 'grayscale(100%) ';
+    }
+
+    if (filters.sepia) {
+        filterString += 'sepia(100%) ';
+    }
+
+    if (filters.brightness !== 1.0) {
+        filterString += `brightness(${filters.brightness}) `;
+    }
+
+    if (filters.contrast !== 1.0) {
+        filterString += `contrast(${filters.contrast}) `;
+    }
+
+    if (filters.blur > 0) {
+        filterString += `blur(${filters.blur}px) `;
+    }
+
+    return filterString.trim();
+}
+
+/**
+ * Apply filters to clip using tickInterceptor for export
+ * This processes video frames through an offscreen canvas with filters
+ */
+async function applyFiltersToClip(clip: MP4Clip, filters: FilterSettings): Promise<void> {
+    const filterString = buildFilterString(filters);
+    if (!filterString) return;
+
+    // Create offscreen canvas for filter processing
+    const canvas = new OffscreenCanvas(1920, 1080);
+    const ctx = canvas.getContext('2d', { willReadFrequently: false });
+    if (!ctx) return;
+
+    console.log('Setting up filter interceptor with:', filterString);
+
+    // Set up tickInterceptor to process frames
+    clip.tickInterceptor = async (time, tickRet) => {
+        if (tickRet.video) {
+            try {
+                // Get video frame as any to access properties
+                const videoFrame = tickRet.video as any;
+
+                // Update canvas size to match video
+                if (videoFrame.displayWidth && videoFrame.displayHeight) {
+                    canvas.width = videoFrame.displayWidth;
+                    canvas.height = videoFrame.displayHeight;
+                }
+
+                // Clear and draw video frame
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.filter = 'none';
+                ctx.drawImage(videoFrame, 0, 0, canvas.width, canvas.height);
+
+                // Apply filters
+                ctx.filter = filterString;
+                ctx.drawImage(canvas, 0, 0);
+                ctx.filter = 'none';
+
+                // Close original frame
+                videoFrame.close();
+
+                // Create new ImageBitmap from filtered canvas
+                // Note: WebAV should accept ImageBitmap as video frame
+                tickRet.video = await createImageBitmap(canvas) as any;
+            } catch (error) {
+                console.error('Error applying filter in interceptor:', error);
+            }
+        }
+
+        return tickRet;
+    };
 }
 
 // ==================== Timeline Tools ====================
@@ -1159,8 +1259,12 @@ async function exportVideo(): Promise<void> {
             // Apply opacity
             exportSprite.opacity = spriteState.opacity;
 
-            // TODO: Apply filters (WebAV might handle this differently for export)
-            // For now, filters are visual-only during preview
+            // Apply filters using clip's tickInterceptor
+            // This processes frames before they're added to the export
+            if (hasActiveFilters(spriteState.filters)) {
+                console.log('Applying filters to export for sprite:', spriteState.id);
+                await applyFiltersToClip(spriteState.clip, spriteState.filters);
+            }
 
             await combinator.addSprite(exportSprite);
 
@@ -1220,11 +1324,27 @@ async function exportVideo(): Promise<void> {
 
         console.log('Export complete');
 
+        // Reset all tickInterceptors after export
+        resetClipInterceptors();
+
     } catch (error) {
         console.error('Export error:', error);
         modal.classList.add('hidden');
         alert('Export failed: ' + (error instanceof Error ? error.message : String(error)));
+
+        // Reset interceptors on error too
+        resetClipInterceptors();
     }
+}
+
+/**
+ * Reset all clip tickInterceptors to prevent affecting preview playback
+ */
+function resetClipInterceptors(): void {
+    state.materials.forEach(material => {
+        material.clip.tickInterceptor = async (time, tickRet) => tickRet;
+    });
+    console.log('Reset all clip interceptors');
 }
 
 function updateExportProgress(percent: number): void {
