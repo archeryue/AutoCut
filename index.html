@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoCut - Web Video Editor</title>
+    <title>AutoCut - Professional Video Editor</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -12,144 +13,259 @@
         <header class="header">
             <div class="logo">
                 <h1>✂️ AutoCut</h1>
+                <span class="version">v2.0 - Powered by WebAV</span>
             </div>
             <div class="header-controls">
-                <button id="newProject" class="btn btn-primary">New Project</button>
+                <button id="newProjectBtn" class="btn btn-secondary">New Project</button>
                 <button id="exportBtn" class="btn btn-success">Export Video</button>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Left Sidebar - Tools -->
-            <aside class="sidebar-left">
-                <h3>Tools</h3>
-                <div class="tool-section">
-                    <h4>Import</h4>
-                    <label for="videoUpload" class="btn btn-secondary btn-block">
-                        Upload Video
-                        <input type="file" id="videoUpload" accept="video/*" hidden>
-                    </label>
+        <!-- Main Content Area -->
+        <div class="main-layout">
+            <!-- Left Sidebar with Vertical Tabs -->
+            <aside class="left-sidebar">
+                <div class="vertical-tabs">
+                    <button class="tab-btn active" data-tab="material">
+                        <span class="tab-icon">📁</span>
+                        <span class="tab-label">Material</span>
+                    </button>
+                    <button class="tab-btn" data-tab="audio">
+                        <span class="tab-icon">🎵</span>
+                        <span class="tab-label">Audio</span>
+                    </button>
+                    <button class="tab-btn" data-tab="captions">
+                        <span class="tab-icon">💬</span>
+                        <span class="tab-label">Captions</span>
+                    </button>
+                    <button class="tab-btn" data-tab="filters">
+                        <span class="tab-icon">🎨</span>
+                        <span class="tab-label">Filters</span>
+                    </button>
                 </div>
 
-                <div class="tool-section">
-                    <h4>Edit Tools</h4>
-                    <button id="splitBtn" class="btn btn-secondary btn-block">Split Clip</button>
-                    <button id="deleteBtn" class="btn btn-secondary btn-block">Delete Clip</button>
-                    <button id="trimBtn" class="btn btn-secondary btn-block">Trim</button>
-                </div>
+                <div class="tab-content-area">
+                    <!-- Material Tab -->
+                    <div class="tab-panel active" data-panel="material">
+                        <h3>Material Library</h3>
+                        <div class="material-upload">
+                            <div id="dropZone" class="drop-zone">
+                                <div class="drop-zone-content">
+                                    <span class="drop-icon">📹</span>
+                                    <p>Drag and drop video files here</p>
+                                    <p class="drop-hint">or</p>
+                                    <label for="videoUpload" class="btn btn-primary">
+                                        Browse Files
+                                        <input type="file" id="videoUpload" accept="video/*" multiple hidden>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="materialList" class="material-list">
+                            <!-- Uploaded videos will appear here -->
+                        </div>
+                    </div>
 
-                <div class="tool-section">
-                    <h4>Filters</h4>
-                    <button class="btn btn-secondary btn-block filter-btn" data-filter="none">None</button>
-                    <button class="btn btn-secondary btn-block filter-btn" data-filter="grayscale">Grayscale</button>
-                    <button class="btn btn-secondary btn-block filter-btn" data-filter="sepia">Sepia</button>
-                    <button class="btn btn-secondary btn-block filter-btn" data-filter="brightness">Brightness</button>
-                    <button class="btn btn-secondary btn-block filter-btn" data-filter="contrast">Contrast</button>
-                </div>
+                    <!-- Audio Tab -->
+                    <div class="tab-panel" data-panel="audio">
+                        <h3>Audio Tracks</h3>
+                        <div class="audio-upload">
+                            <label for="audioUpload" class="btn btn-primary btn-block">
+                                Add Audio Track
+                                <input type="file" id="audioUpload" accept="audio/*" hidden>
+                            </label>
+                        </div>
+                        <div id="audioList" class="audio-list">
+                            <!-- Audio tracks will appear here -->
+                        </div>
+                    </div>
 
-                <div class="tool-section">
-                    <h4>Speed</h4>
-                    <label>Playback Speed:</label>
-                    <select id="speedSelect" class="form-control">
-                        <option value="0.5">0.5x</option>
-                        <option value="1" selected>1.0x</option>
-                        <option value="1.5">1.5x</option>
-                        <option value="2">2.0x</option>
-                    </select>
+                    <!-- Captions Tab -->
+                    <div class="tab-panel" data-panel="captions">
+                        <h3>Captions</h3>
+                        <button id="addCaptionBtn" class="btn btn-primary btn-block">Add Caption</button>
+                        <div id="captionList" class="caption-list">
+                            <!-- Captions will appear here -->
+                        </div>
+                    </div>
+
+                    <!-- Filters Tab -->
+                    <div class="tab-panel" data-panel="filters">
+                        <h3>Filters</h3>
+                        <p class="info-text">Select a clip on the timeline to apply filters</p>
+
+                        <div class="filter-section">
+                            <h4>Visual Effects</h4>
+                            <div class="filter-grid">
+                                <button class="filter-btn" data-filter="none">
+                                    <div class="filter-preview"></div>
+                                    <span>None</span>
+                                </button>
+                                <button class="filter-btn" data-filter="grayscale">
+                                    <div class="filter-preview filter-grayscale"></div>
+                                    <span>Grayscale</span>
+                                </button>
+                                <button class="filter-btn" data-filter="sepia">
+                                    <div class="filter-preview filter-sepia"></div>
+                                    <span>Sepia</span>
+                                </button>
+                                <button class="filter-btn" data-filter="brightness">
+                                    <div class="filter-preview filter-brightness"></div>
+                                    <span>Brightness</span>
+                                </button>
+                                <button class="filter-btn" data-filter="contrast">
+                                    <div class="filter-preview filter-contrast"></div>
+                                    <span>Contrast</span>
+                                </button>
+                                <button class="filter-btn" data-filter="blur">
+                                    <div class="filter-preview filter-blur"></div>
+                                    <span>Blur</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filter-section">
+                            <h4>Speed</h4>
+                            <label>Playback Speed:</label>
+                            <select id="speedSelect" class="form-control">
+                                <option value="0.25">0.25x</option>
+                                <option value="0.5">0.5x</option>
+                                <option value="1" selected>1.0x</option>
+                                <option value="1.5">1.5x</option>
+                                <option value="2">2.0x</option>
+                                <option value="3">3.0x</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-section">
+                            <h4>Opacity</h4>
+                            <div class="slider-control">
+                                <input type="range" id="opacitySlider" min="0" max="100" value="100" class="slider">
+                                <span id="opacityValue" class="slider-value">100%</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </aside>
 
-            <!-- Center - Video Preview -->
-            <main class="preview-area">
-                <div class="video-container">
-                    <div id="dropZone" class="drop-zone">
-                        <p>Drag and drop a video file here or click Upload Video</p>
-                    </div>
-                    <video id="videoPlayer" class="video-player"></video>
-                    <canvas id="videoCanvas" class="video-canvas"></canvas>
-                </div>
-
-                <!-- Video Progress Bar -->
-                <div class="video-progress-container">
-                    <div class="video-progress-bar">
-                        <div id="videoProgressFilled" class="video-progress-filled"></div>
-                        <div id="videoProgressHandle" class="video-progress-handle"></div>
-                    </div>
-                </div>
-
-                <!-- Timeline -->
-                <div class="timeline-container">
-                    <div class="timeline-controls">
-                        <button id="playPauseBtn" class="btn btn-icon">▶</button>
-                        <button id="stopBtn" class="btn btn-icon">■</button>
-                        <span id="currentTime">00:00</span> / <span id="duration">00:00</span>
-                    </div>
-                    <div class="timeline">
-                        <div id="timelineTrack" class="timeline-track">
-                            <div id="playhead" class="playhead"></div>
-                            <div id="clipsContainer" class="clips-container"></div>
+            <!-- Main Content Area -->
+            <main class="main-content">
+                <!-- Canvas Preview Area -->
+                <div class="canvas-container">
+                    <div id="canvasWrapper" class="canvas-wrapper">
+                        <canvas id="previewCanvas" class="preview-canvas"></canvas>
+                        <div id="canvasPlaceholder" class="canvas-placeholder active">
+                            <div class="placeholder-content">
+                                <span class="placeholder-icon">🎬</span>
+                                <h2>Welcome to AutoCut</h2>
+                                <p>Upload a video to get started</p>
+                            </div>
                         </div>
-                        <div class="timeline-ruler" id="timelineRuler"></div>
+                    </div>
+
+                    <!-- Playback Controls -->
+                    <div class="playback-controls">
+                        <button id="playPauseBtn" class="btn-control" title="Play/Pause">
+                            <span class="icon">▶</span>
+                        </button>
+                        <button id="stopBtn" class="btn-control" title="Stop">
+                            <span class="icon">■</span>
+                        </button>
+                        <div class="time-display">
+                            <span id="currentTime">00:00</span>
+                            <span class="separator">/</span>
+                            <span id="totalDuration">00:00</span>
+                        </div>
+                        <div class="volume-control">
+                            <button id="volumeBtn" class="btn-control" title="Volume">
+                                <span class="icon">🔊</span>
+                            </button>
+                            <input type="range" id="volumeSlider" min="0" max="100" value="100" class="volume-slider">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Area -->
+                <div class="timeline-container">
+                    <div class="timeline-header">
+                        <h3>Timeline</h3>
+                        <div class="timeline-tools">
+                            <button id="splitBtn" class="btn-tool" title="Split Clip">
+                                <span>✂️</span> Split
+                            </button>
+                            <button id="deleteBtn" class="btn-tool" title="Delete Clip">
+                                <span>🗑️</span> Delete
+                            </button>
+                            <button id="zoomInBtn" class="btn-tool" title="Zoom In">
+                                <span>🔍+</span>
+                            </button>
+                            <button id="zoomOutBtn" class="btn-tool" title="Zoom Out">
+                                <span>🔍-</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="timeline-wrapper">
+                        <!-- Time Ruler -->
+                        <div class="timeline-ruler">
+                            <div id="timeMarkers" class="time-markers"></div>
+                        </div>
+
+                        <!-- Timeline Tracks -->
+                        <div class="timeline-tracks">
+                            <!-- Video Track -->
+                            <div class="track video-track">
+                                <div class="track-header">
+                                    <span class="track-icon">🎬</span>
+                                    <span class="track-label">Video</span>
+                                </div>
+                                <div id="videoTrackContent" class="track-content">
+                                    <div id="playhead" class="playhead"></div>
+                                    <div id="clipsContainer" class="clips-container"></div>
+                                </div>
+                            </div>
+
+                            <!-- Audio Track -->
+                            <div class="track audio-track">
+                                <div class="track-header">
+                                    <span class="track-icon">🎵</span>
+                                    <span class="track-label">Audio</span>
+                                </div>
+                                <div id="audioTrackContent" class="track-content">
+                                    <!-- Audio clips will appear here -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
-
-            <!-- Right Sidebar - Properties -->
-            <aside class="sidebar-right">
-                <h3>Properties</h3>
-                <div class="property-section">
-                    <h4>Video Info</h4>
-                    <div id="videoInfo">
-                        <p>No video loaded</p>
-                    </div>
-                </div>
-
-                <div class="property-section">
-                    <h4>Clip Settings</h4>
-                    <label>Volume:</label>
-                    <input type="range" id="volumeSlider" min="0" max="100" value="100" class="slider">
-                    <span id="volumeValue">100%</span>
-
-                    <label>Opacity:</label>
-                    <input type="range" id="opacitySlider" min="0" max="100" value="100" class="slider">
-                    <span id="opacityValue">100%</span>
-                </div>
-
-                <div class="property-section">
-                    <h4>Export Settings</h4>
-                    <label>Format:</label>
-                    <select id="formatSelect" class="form-control">
-                        <option value="mp4">MP4</option>
-                        <option value="webm">WebM</option>
-                    </select>
-
-                    <label>Quality:</label>
-                    <select id="qualitySelect" class="form-control">
-                        <option value="low">Low</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="high">High</option>
-                    </select>
-                </div>
-            </aside>
         </div>
     </div>
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay hidden">
-        <div class="spinner"></div>
-        <p id="loadingText">Processing...</p>
-        <div id="exportProgress" class="export-progress hidden">
-            <div class="export-progress-bar">
-                <div id="exportProgressFilled" class="export-progress-filled"></div>
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p id="loadingText">Processing...</p>
+        </div>
+    </div>
+
+    <!-- Export Progress Modal -->
+    <div id="exportModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Exporting Video</h3>
+            <div class="export-progress">
+                <div class="progress-bar">
+                    <div id="exportProgressBar" class="progress-fill"></div>
+                </div>
+                <p id="exportProgressText">0%</p>
+                <p id="exportTimeText" class="export-time">00:00 / 00:00</p>
             </div>
-            <p id="exportProgressText">0%</p>
-            <p id="exportTimeText">00:00 / 00:00</p>
+            <button id="cancelExportBtn" class="btn btn-secondary">Cancel</button>
         </div>
     </div>
 
     <!-- Scripts -->
-    <script src="js/video-editor.js"></script>
-    <script src="js/app.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>
