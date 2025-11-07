@@ -13,7 +13,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:all": "npm test && npx playwright test",
+    "postinstall": "echo '\n⚠️  IMPORTANT: For Linux/WSL2, apply WebAV Opus patch:\n   sed -i \"s/codec: \\\"aac\\\"/codec: \\\"opus\\\"/g\" node_modules/@webav/av-cliper/dist/av-cliper.js\n   See E2E_TESTING.md for details.\n'"
   },
   "keywords": [
     "video",

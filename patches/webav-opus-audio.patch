@@ -1,0 +1,41 @@
+# WebAV Opus Audio Patch
+
+## Problem
+WebAV hardcodes AAC audio codec, which only works on Windows/macOS via Media Foundation.
+On Linux/WSL2, AAC AudioEncoder is not supported, causing exports to fail.
+
+## Solution
+Patch WebAV to use Opus codec instead, which works cross-platform (Linux, macOS, Windows).
+
+## Patch Location
+`node_modules/@webav/av-cliper/dist/av-cliper.js` line 2354
+
+## Change
+```diff
+       audio: o === !1 ? null : {
+-        codec: "aac",
++        codec: "opus",
+         sampleRate: x.sampleRate,
+         channelCount: x.channelCount
+       },
+```
+
+## Why Opus?
+- Cross-platform: Works on Linux, macOS, Windows
+- WebCodecs support: Excellent browser support
+- Quality: Better quality than AAC at same bitrate
+- Open standard: No licensing issues
+
+## Applying the Patch
+This patch must be reapplied after `npm install` updates WebAV.
+
+To apply:
+```bash
+sed -i 's/codec: "aac"/codec: "opus"/g' node_modules/@webav/av-cliper/dist/av-cliper.js
+```
+
+Or use `patch-package` to automate this.
+
+## Related Issues
+- WebAV issue: AAC only works on Windows/macOS
+- WebCodecs spec: https://github.com/w3c/webcodecs/issues/259

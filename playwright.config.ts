@@ -19,7 +19,20 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Enable hardware acceleration and WebCodecs support
+        launchOptions: {
+          headless: false, // Run in headed mode to test with real GPU
+          args: [
+            '--enable-features=VaapiVideoDecoder,VaapiVideoEncoder',
+            '--enable-accelerated-video-decode',
+            '--enable-accelerated-video-encode',
+            '--disable-web-security', // Sometimes needed for WebCodecs
+            '--use-fake-ui-for-media-stream', // For media permissions
+          ],
+        },
+      },
     },
   ],
 

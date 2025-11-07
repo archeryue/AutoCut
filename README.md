@@ -44,11 +44,30 @@ python -m http.server 8000
 ```
 
 ### Running Tests
+
+**Unit Tests** (61 tests with Vitest):
 ```bash
-npm test           # Run all 61 tests
+npm test           # Run all unit tests
 npm run test:watch # Watch mode
 npm run test:ui    # Visual test runner
 ```
+
+**E2E Tests** (6 tests with Playwright):
+```bash
+# IMPORTANT: For Linux/WSL2, apply WebAV Opus patch first:
+sed -i 's/codec: "aac"/codec: "opus"/g' node_modules/@webav/av-cliper/dist/av-cliper.js
+
+# Install Playwright browsers
+npx playwright install chromium
+
+# Run E2E tests
+npm run test:e2e
+
+# Or run all tests at once
+npx playwright test
+```
+
+**📚 Complete E2E testing guide**: See [E2E_TESTING.md](./E2E_TESTING.md) for detailed setup, troubleshooting, and platform-specific requirements.
 
 ## How to Use
 

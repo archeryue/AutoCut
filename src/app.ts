@@ -840,12 +840,19 @@ async function applyFiltersToClip(clip: MP4Clip, filters: FilterSettings): Promi
                 ctx.drawImage(canvas, 0, 0);
                 ctx.filter = 'none';
 
-                // Close original frame
+                // Close original frame and create new VideoFrame from filtered canvas
+                const timestamp = videoFrame.timestamp;
+                const duration = videoFrame.duration;
                 videoFrame.close();
 
-                // Create new ImageBitmap from filtered canvas
-                // Note: WebAV should accept ImageBitmap as video frame
-                tickRet.video = await createImageBitmap(canvas) as any;
+                // Create VideoFrame from canvas instead of ImageBitmap
+                // VideoEncoder requires VideoFrame, not ImageBitmap
+                const imageBitmap = await createImageBitmap(canvas);
+                tickRet.video = new VideoFrame(imageBitmap, {
+                    timestamp: timestamp,
+                    duration: duration
+                }) as any;
+                imageBitmap.close();
             } catch (error) {
                 console.error('Error applying filter in interceptor:', error);
             }
@@ -1256,12 +1263,23 @@ async function exportVideo(): Promise<void> {
         const material = state.materials.find(m => m.id === firstSprite.materialId);
         if (!material) throw new Error('Material not found');
 
+        // Use VP8 + Opus codecs for cross-platform compatibility
+        // (patched WebAV to use Opus instead of AAC for Linux/WSL2 support)
         const combinator = new Combinator({
             width: material.metadata.width,
-            height: material.metadata.height
+            height: material.metadata.height,
+            videoCodec: 'vp8',
+            fps: 30,
+            bitrate: 5e6 // 5 Mbps
+            // audio: true by default, WebAV now uses Opus (patched in node_modules)
         });
 
-        console.log('Combinator created with dimensions:', material.metadata.width, 'x', material.metadata.height);
+        console.log('[EXPORT] Combinator created with:', {
+            dimensions: `${material.metadata.width}x${material.metadata.height}`,
+            codec: 'vp8',
+            fps: 30,
+            bitrate: '5 Mbps'
+        });
 
         // Add all sprites in timeline order
         // For export, we need to create new OffscreenSprite instances configured for the Combinator
@@ -1281,7 +1299,7 @@ async function exportVideo(): Promise<void> {
                 hasFilters: hasActiveFilters(spriteState.filters)
             });
 
-            // If sprite has filters, clone the clip so filters don't affect other sprites
+            // Apply filters if needed
             let clipToUse = spriteState.clip;
             const hasFilters = hasActiveFilters(spriteState.filters);
 
@@ -1290,11 +1308,8 @@ async function exportVideo(): Promise<void> {
                 const cloneStart = performance.now();
                 clipToUse = await spriteState.clip.clone();
                 console.log('[EXPORT] Clone completed in', (performance.now() - cloneStart).toFixed(2), 'ms');
-
-                console.log('[EXPORT] Applying filters to cloned clip');
-                const filterStart = performance.now();
                 await applyFiltersToClip(clipToUse, spriteState.filters);
-                console.log('[EXPORT] Filters applied in', (performance.now() - filterStart).toFixed(2), 'ms');
+                console.log('[EXPORT] Filters applied to cloned clip');
             }
 
             // Create a new OffscreenSprite for export

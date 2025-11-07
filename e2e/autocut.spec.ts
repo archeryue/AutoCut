@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -228,7 +229,6 @@ test.describe('AutoCut Features', () => {
     console.log('✅ Video exported successfully:', filePath);
 
     // Check that file exists and has content
-    const fs = require('fs');
     const stats = fs.statSync(filePath);
     expect(stats.size).toBeGreaterThan(1000); // At least 1KB
 
