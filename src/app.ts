@@ -1126,7 +1126,10 @@ function setSelectedSpriteSpeed(speed: number): void {
     sprite.playbackRate = speed;
     sprite.sprite.time.playbackRate = speed;
 
-    console.log('Set playback rate:', speed);
+    console.log('Set playback rate:', speed, 'for sprite:', sprite.id);
+
+    // Re-render current frame to reflect speed change
+    renderFrame(state.currentTime);
 }
 
 function setSelectedSpriteOpacity(opacity: number): void {
@@ -1244,11 +1247,22 @@ async function exportVideo(): Promise<void> {
                 clip: spriteMaterial?.name,
                 offset: spriteState.sprite.time.offset,
                 duration: spriteState.duration,
-                exportPosition: exportPosition
+                exportPosition: exportPosition,
+                hasFilters: hasActiveFilters(spriteState.filters)
             });
 
+            // If sprite has filters, clone the clip so filters don't affect other sprites
+            let clipToUse = spriteState.clip;
+            const hasFilters = hasActiveFilters(spriteState.filters);
+
+            if (hasFilters) {
+                console.log('Cloning clip for filtered sprite:', spriteState.id);
+                clipToUse = await spriteState.clip.clone();
+                await applyFiltersToClip(clipToUse, spriteState.filters);
+            }
+
             // Create a new OffscreenSprite for export
-            const exportSprite = new OffscreenSprite(spriteState.clip);
+            const exportSprite = new OffscreenSprite(clipToUse);
 
             // Configure time - offset is where to start in source, duration is how much to use
             exportSprite.time = {
@@ -1259,13 +1273,7 @@ async function exportVideo(): Promise<void> {
             // Apply opacity
             exportSprite.opacity = spriteState.opacity;
 
-            // Apply filters using clip's tickInterceptor
-            // This processes frames before they're added to the export
-            if (hasActiveFilters(spriteState.filters)) {
-                console.log('Applying filters to export for sprite:', spriteState.id);
-                await applyFiltersToClip(spriteState.clip, spriteState.filters);
-            }
-
+            // Add sprite to combinator
             await combinator.addSprite(exportSprite);
 
             exportPosition += spriteState.duration;
@@ -1324,27 +1332,11 @@ async function exportVideo(): Promise<void> {
 
         console.log('Export complete');
 
-        // Reset all tickInterceptors after export
-        resetClipInterceptors();
-
     } catch (error) {
         console.error('Export error:', error);
         modal.classList.add('hidden');
         alert('Export failed: ' + (error instanceof Error ? error.message : String(error)));
-
-        // Reset interceptors on error too
-        resetClipInterceptors();
     }
-}
-
-/**
- * Reset all clip tickInterceptors to prevent affecting preview playback
- */
-function resetClipInterceptors(): void {
-    state.materials.forEach(material => {
-        material.clip.tickInterceptor = async (time, tickRet) => tickRet;
-    });
-    console.log('Reset all clip interceptors');
 }
 
 function updateExportProgress(percent: number): void {
