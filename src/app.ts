@@ -658,15 +658,16 @@ async function renderFrame(time: number): Promise<void> {
             const material = state.materials.find(m => m.id === activeSprite.materialId);
             const sampleRate = material ? material.metadata.audioSampleRate : 48000;
 
-            // Play the audio samples with playback rate
-            await playAudioSamples(result.audio, sampleRate, activeSprite.playbackRate);
+            // Play the audio samples at normal speed
+            // (playback speed is already applied by advancing sourceTime faster/slower)
+            await playAudioSamples(result.audio, sampleRate);
         }
     } catch (error) {
         console.error('Error rendering frame:', error);
     }
 }
 
-async function playAudioSamples(channelSamples: Float32Array[], sampleRate: number, playbackRate: number = 1.0): Promise<void> {
+async function playAudioSamples(channelSamples: Float32Array[], sampleRate: number): Promise<void> {
     try {
         // Create AudioContext if not exists
         if (!state.audioContext) {
@@ -686,17 +687,12 @@ async function playAudioSamples(channelSamples: Float32Array[], sampleRate: numb
         const length = channelSamples[0]?.length || 0;
         if (length === 0) return;
 
-        // Base duration at normal speed
-        const baseDuration = length / sampleRate;
-        // Actual duration when played at playbackRate (faster = shorter, slower = longer)
-        const duration = baseDuration / playbackRate;
+        const duration = length / sampleRate;
 
         console.log('Playing audio:', {
             numberOfChannels,
             length,
             sampleRate,
-            playbackRate,
-            baseDuration: (baseDuration * 1000).toFixed(2) + 'ms',
             duration: (duration * 1000).toFixed(2) + 'ms',
             scheduledAt: state.nextAudioTime.toFixed(3),
             currentTime: state.audioContext.currentTime.toFixed(3)
@@ -722,10 +718,7 @@ async function playAudioSamples(channelSamples: Float32Array[], sampleRate: numb
         source.buffer = audioBuffer;
         source.connect(state.audioContext.destination);
 
-        // Apply playback rate (2x = twice as fast, 0.5x = half speed)
-        source.playbackRate.value = playbackRate;
-
-        // Schedule playback
+        // Schedule playback (playback speed already applied by advancing through source faster/slower)
         const playTime = Math.max(state.nextAudioTime, state.audioContext.currentTime);
         source.start(playTime);
 
