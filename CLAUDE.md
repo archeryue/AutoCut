@@ -1,212 +1,306 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working with AutoCut v2.0 - a WebAV-powered browser video editor.
 
-## Project Overview
+## Quick Reference
 
-AutoCut is a browser-based video editor built with vanilla JavaScript, HTML5, and CSS3. It runs entirely client-side with no server required. The application uses HTML5 Video API, Canvas API, and MediaRecorder API to provide real-time video editing, filter application, and export functionality.
+**Tech Stack**: WebAV + WebCodecs, Web Audio API, Canvas API, ES6 modules
+**Browser**: Chrome 94+, Edge 94+ (WebCodecs required)
+**Tests**: 61 passing tests with Vitest
+**Architecture**: Single-file app (js/app.js) using WebAV for video processing
 
 ## Development Commands
 
-### Running the Application
 ```bash
-# Serve with Python (recommended)
-python -m http.server 8000
-# Then visit http://localhost:8000
-
-# Alternative: Node.js
-npx http-server
-
-# Or simply open index.html directly in browser
+# Open in browser
 open index.html
+
+# Run tests
+npm test              # Run once
+npm run test:watch    # Watch mode
+npm run test:ui       # Visual UI
+
+# Serve locally
+python -m http.server 8000
 ```
 
-### NPM Scripts
-```bash
-npm start  # Starts Python HTTP server on port 8000
-npm run dev  # Same as npm start
-```
+## Critical Concepts
 
-No build process, linting, or tests are configured. This is a pure client-side application.
+### 1. WebAV API Usage
 
-## Architecture
-
-### Two-Layer Architecture
-
-**VideoEditor Class (js/video-editor.js)**: Core editing engine
-- Manages video state, clips, and filters
-- Provides editing operations (split, trim, delete, reorganize)
-- Handles playback control
-- Canvas rendering with filter pipeline
-- Export configuration generation
-
-**Application Layer (js/app.js)**: UI and event handling
-- DOM event listeners for all user interactions
-- Timeline rendering and clip visualization
-- File upload and drag-and-drop handling
-- Real-time UI synchronization with video state
-
-### Key Technical Patterns
-
-#### Dual Video Architecture: Hidden Video + Visible Canvas
-
-The app uses a hidden `<video>` element for decoding/playback/audio and a visible `<canvas>` element for displaying filtered frames:
-
+**Import (CDN - Required for GitHub Pages)**:
 ```javascript
-// Video element is hidden (1px, opacity 0) but plays normally
-video.style.opacity = '0';
-
-// Canvas displays video with filters applied in real-time
-ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-ctx.filter = 'grayscale(100%)';
-ctx.drawImage(canvas, 0, 0);
+import { MP4Clip, OffscreenSprite, Combinator } from
+  'https://cdn.jsdelivr.net/npm/@webav/av-cliper@1.1.6/+esm';
 ```
 
-**Why**: Allows real-time pixel manipulation without re-encoding, while keeping native audio playback.
-
-#### Event-Driven UI Synchronization
-
-UI state is synchronized via native video events:
+**MP4Clip Initialization** ⚠️ CRITICAL:
 ```javascript
-video.addEventListener('play', updatePlayPauseButton);
-video.addEventListener('pause', updatePlayPauseButton);
-video.addEventListener('timeupdate', updateTimeDisplay);
-video.addEventListener('ended', updatePlayPauseButton);
+// ✅ CORRECT - Pass ReadableStream
+const clip = new MP4Clip(file.stream());
+await clip.ready;
+
+// ❌ WRONG - These throw "Illegal argument"
+new MP4Clip(file);           // Raw File object
+new MP4Clip(response);       // Response object
+new MP4Clip(blobUrl);        // URL string
 ```
 
-The video element is the single source of truth. The UI reacts to its state changes.
-
-#### Canvas Stream Capture for Export
-
-Export works by capturing the canvas as a live video stream:
+**Preview Playback**:
 ```javascript
-const stream = canvas.captureStream(30);  // 30 fps
-const audioTracks = video.captureStream().getAudioTracks();
-audioTracks.forEach(track => stream.addTrack(track));
-const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond });
-```
-
-The video plays through once while recording, baking filters directly into output.
-
-#### Clip Data Structure
-
-Each clip references a portion of the source video:
-```javascript
-{
-    id: 0,
-    startTime: 0,        // Start in source video (seconds)
-    endTime: 10,         // End in source video (seconds)
-    startPosition: 0,    // Timeline position start
-    endPosition: 10,     // Timeline position end
-    duration: 10         // Clip duration
+// Use MP4Clip.tick() for preview (NOT offscreenRender)
+const result = await clip.tick(timeInMicroseconds);
+if (result.video) {
+  ctx.drawImage(result.video, 0, 0, canvas.width, canvas.height);
+  result.video.close();
+}
+if (result.audio && result.audio.length > 0) {
+  await playAudioSamples(result.audio, sampleRate);
 }
 ```
 
-Operations like split and delete manipulate this structure non-destructively.
+### 2. Timeline vs Source Offset ⚠️ CRITICAL
 
-### Filter Pipeline
+**Two separate time concepts - DO NOT confuse**:
 
-Filters are applied using Canvas 2D context:
-- Rendering uses `requestAnimationFrame` loop while playing
-- Updates on `timeupdate` and `seeked` events when paused
-- CSS-like filters: grayscale, sepia, brightness, contrast
-- Canvas properties: globalAlpha for opacity
+```javascript
+// sprite.time.offset = Trim offset WITHIN source clip
+// spriteState.startTime = Position ON timeline
+
+// Example: Second clip on timeline, using full source video
+const sprite = new OffscreenSprite(clip);
+sprite.time = {
+  offset: 0,              // Start from beginning of source
+  duration: 5000000       // Use 5 seconds
+};
+
+const spriteState = {
+  startTime: 5000000,     // Starts at 5s on timeline (after first clip)
+  duration: 5000000,
+  sprite: sprite
+};
+
+// WRONG: sprite.time.offset = startTime  ❌
+// This confuses timeline position with source trim offset
+```
+
+**When splitting clips**:
+```javascript
+// Split at 4s into the clip
+const sprite2 = new OffscreenSprite(clip);
+sprite2.time = {
+  offset: 4000000,        // Start 4s into source (NOT timeline position!)
+  duration: 6000000
+};
+```
+
+**When deleting clips**:
+```javascript
+// Only shift startTime (timeline), NOT sprite.time.offset (source trim)
+for (let i = deleteIndex; i < sprites.length; i++) {
+  sprites[i].startTime -= deletedDuration;  // ✅ Timeline position
+  // Don't touch sprites[i].sprite.time.offset  ✅
+}
+```
+
+### 3. Export Process ⚠️ CRITICAL
+
+**Must create NEW sprites for export** (don't reuse preview sprites):
+
+```javascript
+// ❌ WRONG - Reusing preview sprites causes black frames/wrong order
+await combinator.addSprite(spriteState.sprite);
+
+// ✅ CORRECT - Create new export sprites
+for (const spriteState of state.sprites) {
+  const exportSprite = new OffscreenSprite(spriteState.clip);
+  exportSprite.time = {
+    offset: spriteState.sprite.time.offset,  // Copy trim offset
+    duration: spriteState.duration            // Copy duration
+  };
+  exportSprite.opacity = spriteState.opacity;
+  await combinator.addSprite(exportSprite);
+}
+```
+
+Why: OffscreenSprite.offscreenRender() is for export, MP4Clip.tick() is for preview. They're configured differently.
+
+### 4. Audio Playback
+
+**Audio data structure**:
+```javascript
+// result.audio is Array<Float32Array> - one Float32Array per channel
+const result = await clip.tick(time);
+// result.audio = [Float32Array(2381), Float32Array(2381)]  // Stereo
+
+// Create AudioBuffer and schedule playback
+const audioBuffer = audioContext.createBuffer(
+  channelSamples.length,    // Number of channels
+  channelSamples[0].length, // Number of samples
+  sampleRate
+);
+
+for (let i = 0; i < channelSamples.length; i++) {
+  audioBuffer.copyToChannel(channelSamples[i], i, 0);
+}
+
+// Schedule on timeline (prevents overlap/distortion)
+const source = audioContext.createBufferSource();
+source.buffer = audioBuffer;
+source.start(state.nextAudioTime);
+state.nextAudioTime += duration;
+```
+
+### 5. Playback Loop
+
+**Must await renderFrame()**:
+```javascript
+// ✅ CORRECT - Sequential rendering
+async function playbackLoop() {
+  if (!state.isPlaying) return;
+  await renderFrame(state.currentTime);  // Must await!
+  state.animationFrameId = requestAnimationFrame(playbackLoop);
+}
+
+// ❌ WRONG - Interleaved rendering causes issues
+function playbackLoop() {
+  renderFrame(state.currentTime);  // Not awaited!
+  requestAnimationFrame(playbackLoop);
+}
+```
 
 ## File Structure
 
 ```
-AutoCut/
-├── index.html          # Main HTML structure, UI layout
-├── css/
-│   └── styles.css      # All styling (dark theme)
-├── js/
-│   ├── video-editor.js # VideoEditor class (core engine)
-│   └── app.js          # Application logic, event handlers, UI updates
-└── package.json        # Minimal package file with start scripts
+js/app.js                      # Main application (all logic)
+  ├── State management         # Global state object
+  ├── Video loading            # loadVideoFile(), MP4Clip creation
+  ├── Timeline management      # addMaterialToTimeline(), renderTimeline()
+  ├── Playback controls        # play(), pause(), playbackLoop()
+  ├── Frame rendering          # renderFrame(), playAudioSamples()
+  ├── Timeline operations      # splitClip(), deleteClip()
+  ├── Filters                  # applyFilters(), filter UI
+  └── Export                   # exportVideo(), Combinator usage
+
+tests/                         # 61 tests
+  ├── mp4clip-initialization.test.js   # MP4Clip.tick() vs ReadableStream
+  ├── export-issues.test.js            # Export black frames/wrong order
+  ├── playback-timeline.test.js        # Async rendering, offset handling
+  └── integration.test.js              # WebAV integration patterns
 ```
 
-## Important Implementation Details
+## Common Bugs & Solutions
 
-### VideoEditor Class (js/video-editor.js)
+### Bug: "Illegal argument" when creating MP4Clip
+**Cause**: Passing File object instead of ReadableStream
+**Fix**: `new MP4Clip(file.stream())`
+**Tests**: mp4clip-initialization.test.js
 
-**Key Methods**:
-- `init(videoElement, canvasElement)` - Initialize with DOM elements
-- `loadVideo(file)` - Load video from File object, returns promise with metadata
-- `splitClip(clipId, splitTime)` - Split clip at timeline position
-- `deleteClip(clipId)` - Remove clip and reorganize timeline
-- `reorganizeClips()` - Recalculate clip positions after deletion
-- `applyFilters()` - Draw current frame with filters to canvas
-- `startRendering()` - Begin requestAnimationFrame loop for playback
-- `setFilter(filterName, value)` - Apply specific filter
-- `seekTo(position)` - Jump to timeline position
-- `getExportConfig()` - Get clip/filter configuration for export
+### Bug: Black frames at start of export
+**Cause**: Reusing preview sprites instead of creating new export sprites
+**Fix**: Create new OffscreenSprite for each timeline clip
+**Tests**: export-issues.test.js
 
-**State Properties**:
-- `clips[]` - Array of clip objects
-- `filters{}` - Current filter state
-- `selectedClip` - Currently selected clip
-- `isPlaying` - Playback state
-- `currentTime`, `duration` - Time tracking
+### Bug: Wrong export order
+**Cause**: Sprites not configured with correct offset/duration
+**Fix**: Set `sprite.time = { offset: sourceOffset, duration: clipDuration }`
+**Tests**: export-issues.test.js
 
-### Application Layer (js/app.js)
+### Bug: Audio distortion/buzzing
+**Cause**: Audio chunks playing immediately (overlapping)
+**Fix**: Schedule audio with `source.start(scheduledTime)` on timeline
+**Tests**: playback-timeline.test.js (conceptually)
 
-**Key Functions**:
-- `handleFile(file)` - Process uploaded/dropped video file
-- `renderTimeline()` - Redraw timeline with all clips
-- `createClipElement(clip, totalDuration)` - Generate clip DOM element
-- `selectClip(clip)` - Select clip and update UI
-- `splitCurrentClip()` - Split selected clip at current time
-- `deleteSelectedClip()` - Delete selected clip with confirmation
-- `applyFilter(filterName)` - Apply filter via VideoEditor
-- `exportVideo()` - Real video export using MediaRecorder
-- `updatePlayPauseButton()` - Sync button state with video
-- `updateTimeDisplay()` - Update time/progress displays
-- `updateProgressBar(currentTime, duration)` - Update progress bar UI
+### Bug: Video not rendering during playback
+**Cause**: `playbackLoop()` not awaiting `renderFrame()`
+**Fix**: Make playbackLoop async and await renderFrame
+**Tests**: playback-timeline.test.js
 
-**Export Implementation** (js/app.js:592-709):
-The export function plays through the entire video while recording canvas output with MediaRecorder. Progress is tracked via timeupdate events and displayed in real-time.
+### Bug: Split clips play wrong section
+**Cause**: Confused `sprite.time.offset` (source) with `startTime` (timeline)
+**Fix**: `sprite.time.offset` = where in source, `startTime` = where on timeline
+**Tests**: playback-timeline.test.js
 
-### Browser Compatibility Notes
+## Key State Objects
 
-- Canvas `captureStream()` (Chrome/Edge) vs `mozCaptureStream()` (Firefox)
-- MediaRecorder mime type support varies by browser
-- Fallback order: MP4 → WebM H264 → WebM VP9
-- Context options: `{ willReadFrequently: true }` for filter performance
+```javascript
+// Material (uploaded video)
+{
+  id, name, file, clip,
+  metadata: { duration, width, height, audioSampleRate, audioChannels }
+}
 
-## Common Workflows
+// Timeline sprite
+{
+  id, materialId, clip, sprite,
+  startTime,    // Position on timeline (microseconds)
+  duration,     // How long on timeline (microseconds)
+  filters: { grayscale, sepia, brightness, contrast, blur },
+  playbackRate, // Future feature
+  opacity       // 0-1
+}
 
-### Adding a New Filter
-1. Add filter button to index.html with `data-filter="filterName"`
-2. Add filter to VideoEditor's `filters` object (js/video-editor.js:14)
-3. Implement filter logic in `applyFilters()` method (js/video-editor.js:229)
-4. Add case to `applyFilter()` switch in app.js (js/app.js:528)
+// sprite.time configuration
+{
+  offset,   // Trim offset in source clip (microseconds)
+  duration  // How much to use from source (microseconds)
+}
+```
 
-### Modifying Timeline Behavior
-- Timeline rendering: `renderTimeline()` in js/app.js:223
-- Clip creation: `createClipElement()` in js/app.js:248
-- Timeline interaction: `handleTimelineClick()` in js/app.js:320
-- Playhead updates: `updatePlayhead()` in js/app.js:365
+## Important Patterns
 
-### Extending Export Functionality
-- Export logic: `exportVideo()` in js/app.js:592
-- Quality/format settings: Lines 611-628
-- Progress tracking: `updateExportProgress()` in js/app.js:572
-- MediaRecorder setup: Lines 646-677
+**Adding clip to timeline**:
+```javascript
+const sprite = new OffscreenSprite(clip);
+sprite.time = { offset: 0, duration: clip.meta.duration };
+sprite.opacity = 1.0;
+// Store both sprite (for rendering) and metadata (for UI)
+```
 
-## Technical Constraints
+**Rendering frame during playback**:
+```javascript
+const sourceTime = sprite.time.offset + (currentTime - sprite.startTime);
+const result = await clip.tick(sourceTime);
+```
 
-- **No build process**: Pure vanilla JavaScript, no transpilation or bundling
-- **No dependencies**: No npm packages, frameworks, or libraries
-- **Client-side only**: All processing happens in browser
-- **Single video track**: Only one video file loaded at a time
-- **Browser API limitations**: Export quality/formats limited by MediaRecorder support
-- **Memory constraints**: Large videos loaded entirely into memory may cause performance issues
+**Audio scheduling** (prevent overlap):
+```javascript
+state.nextAudioTime = Math.max(state.nextAudioTime, audioContext.currentTime);
+source.start(state.nextAudioTime);
+state.nextAudioTime += duration;
+```
 
-## Code Style
+## Test Strategy
 
-- ES6+ JavaScript (classes, arrow functions, const/let, async/await)
-- Clear function names describing actions (handleFileUpload, renderTimeline)
-- JSDoc-style comments for major functions
-- Event-driven architecture with addEventListener
-- No global state except `editor`, `currentVideo`, and drag tracking
-- Modular organization: VideoEditor class vs app.js functions
+Tests mock WebAV classes (MockMP4Clip, MockOffscreenSprite, MockCombinator) to test our integration code, NOT WebAV itself. Each test documents correct vs incorrect patterns.
+
+Run tests before making changes to understand expected behavior. Add tests when fixing bugs.
+
+## Performance Notes
+
+- WebCodecs is hardware-accelerated (fast encoding/decoding)
+- Audio scheduling prevents gaps/overlap without buffering
+- Canvas rendering uses requestAnimationFrame (60fps max)
+- Export is real-time (10s video = ~10s export time)
+- Large files (>1GB) may cause memory issues
+
+## Browser API Compatibility
+
+```javascript
+// Check WebCodecs support
+if (!window.VideoEncoder || !window.VideoDecoder) {
+  alert('WebCodecs not supported. Use Chrome 94+ or Edge 94+');
+}
+
+// AudioContext (all modern browsers)
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+```
+
+## When Adding Features
+
+1. **Check tests first** - See how existing features work
+2. **Update state object** - Add new properties to `state` or `spriteState`
+3. **Handle in renderFrame** - Update frame rendering if needed
+4. **Handle in export** - Update exportVideo if needed
+5. **Add tests** - Document the feature with tests
+6. **Update this file** - Add notes for future Claude instances
