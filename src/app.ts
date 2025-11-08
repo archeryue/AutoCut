@@ -35,6 +35,7 @@ const state: AppState = {
     // Audio
     audioContext: null,
     nextAudioTime: 0, // Track when next audio chunk should play
+    activeAudioSources: [], // Track active audio sources
 };
 
 // ==================== Initialization ====================
@@ -512,6 +513,16 @@ function pause(): void {
         state.animationFrameId = null;
     }
 
+    // Stop all active audio sources to prevent overlap
+    state.activeAudioSources.forEach(source => {
+        try {
+            source.stop();
+        } catch (e) {
+            // Source might have already finished, ignore error
+        }
+    });
+    state.activeAudioSources = []; // Clear the array
+
     // Reset audio scheduling when pausing
     if (state.audioContext) {
         state.nextAudioTime = state.audioContext.currentTime;
@@ -718,6 +729,17 @@ async function playAudioSamples(channelSamples: Float32Array[], sampleRate: numb
         source.buffer = audioBuffer;
         source.connect(state.audioContext.destination);
 
+        // Track this source so we can stop it when pausing
+        state.activeAudioSources.push(source);
+
+        // Auto-remove from array when audio finishes playing
+        source.onended = () => {
+            const index = state.activeAudioSources.indexOf(source);
+            if (index > -1) {
+                state.activeAudioSources.splice(index, 1);
+            }
+        };
+
         // Schedule playback (playback speed already applied by advancing through source faster/slower)
         const playTime = Math.max(state.nextAudioTime, state.audioContext.currentTime);
         source.start(playTime);
@@ -886,22 +908,21 @@ function setupTimelineTools(): void {
 }
 
 function splitClip(): void {
-    if (!state.selectedSpriteId) {
-        alert('Please select a clip first');
+    // Auto-select clip under playhead
+    const clipUnderPlayhead = state.sprites.find(s =>
+        state.currentTime >= s.startTime &&
+        state.currentTime < (s.startTime + s.duration)
+    );
+
+    if (!clipUnderPlayhead) {
+        alert('Move playhead over a clip to split');
         return;
     }
 
-    const spriteIndex = state.sprites.findIndex(s => s.id === state.selectedSpriteId);
-    if (spriteIndex === -1) return;
-
+    // Auto-select the clip under playhead
+    state.selectedSpriteId = clipUnderPlayhead.id;
+    const spriteIndex = state.sprites.findIndex(s => s.id === clipUnderPlayhead.id);
     const sprite = state.sprites[spriteIndex];
-    if (!sprite) return;
-
-    // Check if current time is within sprite
-    if (state.currentTime <= sprite.startTime || state.currentTime >= (sprite.startTime + sprite.duration)) {
-        alert('Move playhead within the selected clip to split');
-        return;
-    }
 
     // Calculate split point
     const splitPoint = state.currentTime - sprite.startTime;

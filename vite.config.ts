@@ -2,6 +2,11 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig({
+  // Base path for GitHub Pages deployment
+  // Use '/AutoCut/' for https://archeryue.github.io/AutoCut/
+  // Use '/' for local development (override with --base flag if needed)
+  base: process.env.NODE_ENV === 'production' ? '/AutoCut/' : '/',
+
   root: '.',
   publicDir: 'public',
   build: {

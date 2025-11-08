@@ -77,6 +77,7 @@ export interface AppState {
   // Audio
   audioContext: AudioContext | null;
   nextAudioTime: number; // Scheduled audio time
+  activeAudioSources: AudioBufferSourceNode[]; // Track active audio sources to stop them on pause
 
   // UI
   zoom: number; // pixels per second
