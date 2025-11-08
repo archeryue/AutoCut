@@ -18,9 +18,10 @@ export default defineConfig({
 
   projects: [
     {
-      name: 'chromium',
+      name: 'chrome',
       use: {
         ...devices['Desktop Chrome'],
+        channel: 'chrome', // Use system-installed Google Chrome
         // Enable hardware acceleration and WebCodecs support
         launchOptions: {
           headless: false, // Run in headed mode to test with real GPU

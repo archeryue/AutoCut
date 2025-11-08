@@ -1274,7 +1274,7 @@ async function exportVideo(): Promise<void> {
             videoCodec: 'avc1.42E032',  // H.264 Baseline Profile Level 5.0 (supported on macOS ARM64)
             fps: 30,
             bitrate: 5e6 // 5 Mbps
-            // audio: true by default, WebAV now uses Opus (patched in node_modules)
+            // audio: true by default (uses AAC on macOS, Opus on Linux via patch)
         });
 
         console.log('[EXPORT] Combinator created with:', {
@@ -1331,10 +1331,11 @@ async function exportVideo(): Promise<void> {
             exportSprite.opacity = spriteState.opacity;
 
             // Add sprite to combinator
-            // Mark the first sprite as 'main' to set the output video duration
+            // Mark as 'main' only if this is the only sprite (to set correct duration)
+            // For multiple sprites, WebAV calculates total duration automatically
             console.log('[EXPORT] Adding sprite to combinator...');
             const addSpriteStart = performance.now();
-            await combinator.addSprite(exportSprite, { main: i === 0 });
+            await combinator.addSprite(exportSprite, state.sprites.length === 1 ? { main: true } : undefined);
             console.log('[EXPORT] Sprite added in', (performance.now() - addSpriteStart).toFixed(2), 'ms');
 
             exportPosition += spriteState.duration;
