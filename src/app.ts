@@ -389,10 +389,22 @@ function renderTimeMarkers(totalDurationSec: number): void {
     const timeMarkers = document.getElementById('timeMarkers');
     if (!timeMarkers) return;
 
-    const markerCount = Math.ceil(totalDurationSec / 5); // Every 5 seconds
+    // Calculate appropriate interval based on zoom level
+    // Aim for minimum 80px between markers for readability
+    const minPixelSpacing = 80;
+    const secondsPerPixel = 1 / state.zoom;
+    const minSecondsPerMarker = minPixelSpacing * secondsPerPixel;
+
+    // Choose nice intervals: 1, 2, 5, 10, 15, 30, 60, 120, 300, 600
+    const niceIntervals = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+    let interval = niceIntervals.find(i => i >= minSecondsPerMarker) || 600;
+
+    const markerCount = Math.ceil(totalDurationSec / interval);
 
     for (let i = 0; i <= markerCount; i++) {
-        const time = i * 5;
+        const time = i * interval;
+        if (time > totalDurationSec) break; // Don't exceed total duration
+
         const marker = document.createElement('div');
         marker.className = 'time-marker';
         marker.style.left = (time * state.zoom) + 'px';
