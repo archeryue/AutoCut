@@ -196,20 +196,23 @@ for (const spriteState of state.sprites) {
 
 Why: OffscreenSprite.offscreenRender() is for export, MP4Clip.tick() is for preview. They're configured differently.
 
-**Codec Configuration** (VP8 + Opus for cross-platform):
+**Codec Configuration** (H.264 + Opus):
 ```javascript
 const combinator = new Combinator({
   width: material.metadata.width,
   height: material.metadata.height,
-  videoCodec: 'vp8',    // VP8 works cross-platform (vs avc1 H.264)
+  videoCodec: 'avc1.42E01E',  // H.264 Baseline Profile (only codec supported by WebAV)
   fps: 30,
   bitrate: 5e6          // 5 Mbps
   // audio: true by default, uses Opus (patched WebAV)
 });
 ```
 
-⚠️ **IMPORTANT - WebAV Opus Patch**:
-WebAV hardcodes AAC audio, which only works on Windows/macOS. For Linux/WSL2 support, we patched WebAV to use Opus instead. See `patches/webav-opus-audio.patch` for details. This patch must be reapplied after `npm install`.
+⚠️ **IMPORTANT - WebAV Limitations**:
+1. **Video codec**: WebAV Combinator ONLY supports H.264 encoding, regardless of `videoCodec` parameter
+2. **Audio codec**: WebAV hardcodes AAC audio, which only works on Windows/macOS. For Linux/WSL2 support, we patched WebAV to use Opus instead
+3. **ARM64 Linux**: H.264 VideoEncoder may be broken on ARM64 Linux, producing corrupted exports. For a solution, see [WEBAV_ARCHITECTURE.md](./WEBAV_ARCHITECTURE.md)
+4. **Opus patch**: See `patches/webav-opus-audio.patch` for details. Must be reapplied after `npm install`
 
 ### 4. Audio Playback
 

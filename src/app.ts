@@ -1264,12 +1264,14 @@ async function exportVideo(): Promise<void> {
         const material = state.materials.find(m => m.id === firstSprite.materialId);
         if (!material) throw new Error('Material not found');
 
-        // Use VP8 + Opus codecs for cross-platform compatibility
-        // (patched WebAV to use Opus instead of AAC for Linux/WSL2 support)
+        // Use H.264 + Opus codecs
+        // Note: WebAV Combinator only supports H.264 video encoding
+        // Audio uses Opus instead of AAC for Linux/WSL2 support (patched WebAV)
+        // ⚠️ Known issue: H.264 encoder may be broken on ARM64 Linux
         const combinator = new Combinator({
             width: material.metadata.width,
             height: material.metadata.height,
-            videoCodec: 'vp8',
+            videoCodec: 'avc1.42E01E',  // H.264 Baseline Profile (only supported codec)
             fps: 30,
             bitrate: 5e6 // 5 Mbps
             // audio: true by default, WebAV now uses Opus (patched in node_modules)
@@ -1277,7 +1279,7 @@ async function exportVideo(): Promise<void> {
 
         console.log('[EXPORT] Combinator created with:', {
             dimensions: `${material.metadata.width}x${material.metadata.height}`,
-            codec: 'vp8',
+            codec: 'avc1 (H.264)',
             fps: 30,
             bitrate: '5 Mbps'
         });
@@ -1384,6 +1386,7 @@ async function exportVideo(): Promise<void> {
         console.log(`Total chunks: ${chunkCount}, total size: ${chunks.reduce((sum, c) => sum + c.byteLength, 0)} bytes`);
 
         // Create blob and download
+        // MP4 container with H.264 video + Opus audio
         const blob = new Blob(chunks as BlobPart[], { type: 'video/mp4' });
         const url = URL.createObjectURL(blob);
 

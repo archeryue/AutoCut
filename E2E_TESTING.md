@@ -94,30 +94,43 @@ No special patches required - AAC codec works natively. VP8 + Opus still work fi
 
 ## Codec Configuration
 
-Export uses **VP8 video + Opus audio** for cross-platform compatibility.
-
-### Why VP8 + Opus?
-
-| Codec | Platform Support | Quality | Notes |
-|-------|-----------------|---------|-------|
-| **VP8** | ✅ All platforms | Good | Better cross-platform than H.264 |
-| **Opus** | ✅ All platforms | Excellent | Required for Linux/WSL2 |
-| H.264 (avc1) | ⚠️ Platform-specific | Excellent | Default varies by platform |
-| AAC | ❌ Windows/macOS only | Good | Fails on Linux |
+Export uses **H.264 video + Opus audio**.
 
 ### Current Configuration
 
 ```javascript
-// src/app.ts:1266-1275
+// src/app.ts
 const combinator = new Combinator({
   width: material.metadata.width,
   height: material.metadata.height,
-  videoCodec: 'vp8',    // Cross-platform
+  videoCodec: 'avc1.42E01E',  // H.264 Baseline Profile (only codec supported by WebAV)
   fps: 30,
   bitrate: 5e6          // 5 Mbps
   // audio: true by default, uses Opus (patched)
 });
 ```
+
+### Codec Support
+
+| Codec | Platform Support | Quality | Notes |
+|-------|-----------------|---------|-------|
+| **H.264 (avc1)** | ✅ Windows/macOS/Linux x64<br>❌ Linux ARM64 | Excellent | Only codec supported by WebAV Combinator<br>**Broken on ARM64 Linux** |
+| **Opus** | ✅ All platforms | Excellent | Required for Linux/WSL2 (patched WebAV) |
+| AAC | ❌ Windows/macOS only | Good | Default WebAV audio, fails on Linux |
+| VP8 | ⚠️ Not available | N/A | WebAV Combinator ignores VP8 setting, always uses H.264 |
+
+### ⚠️ ARM64 Linux Limitation
+
+**Known Issue**: H.264 VideoEncoder on ARM64 Linux produces corrupted output.
+
+- **Symptom**: Exported videos cannot be played, ffprobe shows "Invalid data"
+- **Affected Platforms**: WSL2 ARM64, Raspberry Pi, ARM-based Linux systems
+- **Workaround**: See [WEBAV_ARCHITECTURE.md](./WEBAV_ARCHITECTURE.md) for implementing custom VP8+WebM export
+- **Alternative**: Run tests on x64 platform where H.264 encoding works
+
+**E2E Tests on ARM64**:
+- Video validation includes `checkFrames: false` to skip frame analysis
+- Tests verify file creation and basic metadata, but exported video may not be playable
 
 ## Test File Requirements
 
