@@ -6,7 +6,7 @@ Guidance for Claude Code when working with AutoCut v2.0 - a WebAV-powered browse
 
 **Tech Stack**: WebAV + WebCodecs, Web Audio API, Canvas API, ES6 modules
 **Browser**: Chrome 94+, Edge 94+ (WebCodecs required)
-**Tests**: 67 tests (61 unit + 6 E2E) - ALL MUST PASS
+**Tests**: 68 tests (61 unit + 7 E2E) - ALL MUST PASS
 **Architecture**: Single-file app (src/app.ts) using WebAV for video processing
 
 ## 🚨 CRITICAL PRINCIPLE: Run Tests Yourself
@@ -61,7 +61,7 @@ python -m http.server 8000
 1. **Implement Feature** - Write code in `src/app.ts`
 2. **Write/Update Unit Tests** - Add tests in `tests/`
 3. **Run Unit Tests** - `npm test` (must pass)
-4. **✅ RUN E2E TESTS** - `npm run test:e2e` (must pass all 6 tests)
+4. **✅ RUN E2E TESTS** - `npm run test:e2e` (must pass all 7 tests)
 5. **Verify Export Test** - Most critical test, ensures core functionality works
 6. **Update Documentation** - If needed
 
@@ -72,7 +72,9 @@ E2E tests verify:
 - ✅ Video upload works
 - ✅ Timeline operations (split, delete) work
 - ✅ Filters apply correctly per clip
-- ✅ **Export works with audio** (MOST CRITICAL)
+- ✅ Playback speed changes work
+- ✅ **Export with playback speed** (tests 2x speed, audio sync)
+- ✅ **Export with filters** (tests multi-clip export with filters + audio) - MOST CRITICAL
 
 **If E2E tests fail, the feature is NOT complete!**
 
@@ -83,7 +85,9 @@ E2E tests verify:
 npm test && npx playwright test
 ```
 
-**Expected result**: `6 passed (52.9s)` with all tests showing ✓
+**Expected result**: `7 passed (36.2s)` with all tests showing ✓
+
+**IMPORTANT**: E2E tests require **system-installed Google Chrome** (not Playwright's bundled Chromium). Playwright's Chromium has WebCodecs limitations on macOS ARM64, specifically VideoDecoder cannot decode H.264 videos. The config (`playwright.config.ts`) is already set to use system Chrome via `channel: 'chrome'`.
 
 ### When to Update E2E Tests
 
@@ -183,36 +187,52 @@ for (let i = deleteIndex; i < sprites.length; i++) {
 await combinator.addSprite(spriteState.sprite);
 
 // ✅ CORRECT - Create new export sprites
-for (const spriteState of state.sprites) {
+for (let i = 0; i < state.sprites.length; i++) {
+  const spriteState = state.sprites[i];
   const exportSprite = new OffscreenSprite(spriteState.clip);
   exportSprite.time = {
     offset: spriteState.sprite.time.offset,  // Copy trim offset
-    duration: spriteState.duration            // Copy duration
+    duration: spriteState.duration,          // Copy duration
+    playbackRate: spriteState.sprite.time.playbackRate || 1.0
   };
   exportSprite.opacity = spriteState.opacity;
-  await combinator.addSprite(exportSprite);
+
+  // ⚠️ CRITICAL: Only use { main: true } for single-sprite exports
+  // For multi-sprite exports, WebAV calculates total duration automatically
+  await combinator.addSprite(
+    exportSprite,
+    state.sprites.length === 1 ? { main: true } : undefined
+  );
 }
 ```
 
 Why: OffscreenSprite.offscreenRender() is for export, MP4Clip.tick() is for preview. They're configured differently.
 
-**Codec Configuration** (H.264 + Opus):
+**Codec Configuration** (H.264 + AAC):
 ```javascript
 const combinator = new Combinator({
   width: material.metadata.width,
   height: material.metadata.height,
-  videoCodec: 'avc1.42E01E',  // H.264 Baseline Profile (only codec supported by WebAV)
+  videoCodec: 'avc1.42E032',  // H.264 Baseline Profile Level 5.0 (best macOS ARM64 support)
   fps: 30,
   bitrate: 5e6          // 5 Mbps
-  // audio: true by default, uses Opus (patched WebAV)
+  // audio: true by default, uses AAC (macOS/Windows) or Opus (Linux patch)
 });
 ```
 
-⚠️ **IMPORTANT - WebAV Limitations**:
-1. **Video codec**: WebAV Combinator ONLY supports H.264 encoding, regardless of `videoCodec` parameter
-2. **Audio codec**: WebAV hardcodes AAC audio, which only works on Windows/macOS. For Linux/WSL2 support, we patched WebAV to use Opus instead
-3. **ARM64 Linux**: H.264 VideoEncoder may be broken on ARM64 Linux, producing corrupted exports. For a solution, see [WEBAV_ARCHITECTURE.md](./WEBAV_ARCHITECTURE.md)
-4. **Opus patch**: See `patches/webav-opus-audio.patch` for details. Must be reapplied after `npm install`
+⚠️ **CRITICAL - WebAV Limitations & Platform Differences**:
+1. **Video codec**: WebAV Combinator ONLY supports H.264 encoding. Use `avc1.42E032` (Baseline Profile Level 5.0) for best macOS ARM64 support
+2. **Audio codec**:
+   - **macOS/Windows**: Use AAC (default, works out of box)
+   - **Linux/WSL2**: Requires Opus patch (AAC encoder not available)
+3. **Vite Cache Issues**: If you modify `node_modules/@webav/av-cliper/` (e.g., applying Opus patch), you **MUST** clear Vite cache:
+   ```bash
+   rm -rf node_modules/.vite
+   npm run dev
+   ```
+   Otherwise Vite serves the old cached version, causing broken audio (0 channels, invalid sample rate)
+4. **ARM64 Linux**: H.264 VideoEncoder may be broken on ARM64 Linux, producing corrupted exports. For a solution, see [WEBAV_ARCHITECTURE.md](./WEBAV_ARCHITECTURE.md)
+5. **Opus patch**: See `patches/webav-opus-audio.patch` for details. Must be reapplied after `npm install` (Linux only)
 
 ### 4. Audio Playback
 

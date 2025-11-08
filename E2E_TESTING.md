@@ -8,11 +8,14 @@ Complete guide for running end-to-end tests with Playwright, including setup, tr
 # Install dependencies
 npm install
 
-# Apply WebAV Opus patch (REQUIRED for Linux/WSL2)
+# Apply WebAV Opus patch (Linux/WSL2 ONLY - DO NOT apply on macOS/Windows)
 sed -i 's/codec: "aac"/codec: "opus"/g' node_modules/@webav/av-cliper/dist/av-cliper.js
+# ⚠️ If you applied the patch, clear Vite cache: rm -rf node_modules/.vite
 
-# Install Playwright browsers
-npx playwright install chromium
+# Install system Chrome (REQUIRED - Playwright's Chromium has WebCodecs limitations)
+# macOS: Download from https://www.google.com/chrome/
+# Linux: sudo apt install google-chrome-stable
+# Windows: Download from https://www.google.com/chrome/
 
 # Start dev server (in one terminal)
 npm run dev
@@ -26,19 +29,48 @@ npx playwright test
 
 ## Test Suite Overview
 
-**6 E2E Tests** (all must pass):
+**7 E2E Tests** (all must pass):
 1. ✅ **Application Load** - Verifies app loads and UI elements present
 2. ✅ **Video Upload** - Tests file upload and timeline addition
 3. ✅ **Clip Splitting** - Tests timeline clip splitting functionality
 4. ✅ **Filter Application** - Tests per-clip filter isolation
 5. ✅ **Playback Speed** - Tests speed control
-6. ✅ **Video Export with Filters** - Tests full export pipeline with audio
+6. ✅ **Video Export with Playback Speed** - Tests 2x speed export with audio sync
+7. ✅ **Video Export with Filters** - Tests multi-clip export pipeline with filters + audio
 
-**Total Test Count**: 67 tests
+**Total Test Count**: 68 tests
 - 61 Vitest unit tests
-- 6 Playwright E2E tests
+- 7 Playwright E2E tests
+
+**Expected E2E Result**: `7 passed (36.2s)` with all tests showing ✓
 
 ## Platform-Specific Requirements
+
+### macOS / Windows
+
+**System Chrome Required**: E2E tests use system-installed Google Chrome (not Playwright's Chromium).
+
+**Why?**
+- Playwright's bundled Chromium has WebCodecs limitations on macOS ARM64
+- VideoDecoder cannot decode H.264 videos in Playwright Chromium
+- System Chrome has better hardware acceleration and codec support
+
+**Configuration**:
+The `playwright.config.ts` is already configured to use system Chrome:
+```typescript
+{
+  name: 'chrome',
+  use: {
+    channel: 'chrome', // Uses system Chrome
+  }
+}
+```
+
+**Installation**:
+- **macOS**: Download from https://www.google.com/chrome/
+- **Windows**: Download from https://www.google.com/chrome/
+
+**Audio Codec**: AAC (default, no patch needed)
 
 ### Linux / WSL2
 
@@ -55,6 +87,9 @@ npx playwright test
 # Manual patch
 sed -i 's/codec: "aac"/codec: "opus"/g' node_modules/@webav/av-cliper/dist/av-cliper.js
 
+# ⚠️ CRITICAL: Clear Vite cache after patching
+rm -rf node_modules/.vite
+
 # Verify patch applied
 grep 'codec: "opus"' node_modules/@webav/av-cliper/dist/av-cliper.js
 # Should show: codec: "opus",
@@ -64,6 +99,8 @@ grep 'codec: "opus"' node_modules/@webav/av-cliper/dist/av-cliper.js
 - After `npm install`
 - After `npm update`
 - After deleting `node_modules`
+
+**IMPORTANT**: Always clear Vite cache (`rm -rf node_modules/.vite`) after applying the patch, otherwise Vite will serve the old cached AAC version, causing exports with no audio (0 channels, invalid sample rate).
 
 **Automation option** (future):
 Use `patch-package` to automate this:
