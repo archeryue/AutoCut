@@ -168,7 +168,7 @@ test.describe('AutoCut Features', () => {
   test('should export video with playback speed', async ({ page }) => {
     const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
 
-    // Capture browser console logs
+    // Capture browser console logs (filter to export-related only)
     page.on('console', msg => {
       const text = msg.text();
       if (text.includes('[EXPORT]') || text.includes('export') || text.includes('Export')) {
@@ -253,7 +253,7 @@ test.describe('AutoCut Features', () => {
   test('should export video with filters', async ({ page }) => {
     const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
 
-    // Capture browser console logs
+    // Capture browser console logs (filter to export-related only)
     page.on('console', msg => {
       const text = msg.text();
       if (text.includes('[EXPORT]') || text.includes('export') || text.includes('Export')) {
