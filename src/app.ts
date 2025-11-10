@@ -1691,7 +1691,13 @@ function seekRelative(deltaMicroseconds: number): void {
 function seekTo(timeMicroseconds: number): void {
     state.currentTime = timeMicroseconds;
     renderFrame(state.currentTime);
-    updateTimeDisplay(state.currentTime);
+
+    // Update time display
+    const currentTimeEl = document.getElementById('currentTime');
+    if (currentTimeEl) {
+        currentTimeEl.textContent = formatTime(state.currentTime / 1000000);
+    }
+
     updatePlayhead();
 }
 
@@ -1730,8 +1736,8 @@ function performRedo(): void {
 }
 
 function updateUndoRedoButtons(): void {
-    const undoBtn = document.getElementById('undoBtn');
-    const redoBtn = document.getElementById('redoBtn');
+    const undoBtn = document.getElementById('undoBtn') as HTMLButtonElement;
+    const redoBtn = document.getElementById('redoBtn') as HTMLButtonElement;
 
     if (undoBtn) {
         undoBtn.disabled = !history.canUndo();
