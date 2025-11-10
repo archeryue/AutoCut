@@ -498,6 +498,9 @@ function selectSprite(spriteId: string): void {
     // Update inspector panel for selected sprite
     updateInspectorUI();
 
+    // Show inspector panel when clip is selected
+    showInspector();
+
     console.log('Selected sprite:', spriteId);
 }
 
@@ -1112,6 +1115,7 @@ function deleteClip(): void {
     }
 
     state.selectedSpriteId = null;
+    hideInspector();
 
     // Create snapshot AFTER delete
     const afterSnapshot = createSpritesSnapshot();
@@ -1506,6 +1510,10 @@ function hideInspector(): void {
     if (inspector) {
         inspector.classList.add('hidden');
     }
+
+    // Deselect sprite when hiding inspector
+    state.selectedSpriteId = null;
+    renderTimeline();
 }
 
 function updateInspectorUI(): void {
@@ -2047,6 +2055,7 @@ function newProject(): void {
     state.selectedSpriteId = null;
     state.currentTime = 0;
     pause();
+    hideInspector();
 
     // Clear UI
     const materialList = document.getElementById('materialList');
