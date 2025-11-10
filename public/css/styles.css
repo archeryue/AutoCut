@@ -29,7 +29,7 @@
 
     /* Spacing */
     --header-height: 60px;
-    --sidebar-width: 280px;
+    --sidebar-width: 320px;
     --inspector-width: 300px;
     --timeline-height: 250px;
 
@@ -101,29 +101,34 @@ body {
     background: var(--secondary-bg);
     border-right: 1px solid var(--border-color);
     display: flex;
-    flex-direction: column;
+    flex-direction: row;  /* Changed from column to row */
     overflow: hidden;
 }
 
 .vertical-tabs {
+    width: 70px;  /* Wider for icon + label (22% of 320px) */
     display: flex;
     flex-direction: column;
     background: var(--primary-bg);
-    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    flex-shrink: 0;  /* Prevent shrinking */
 }
 
 .tab-btn {
     display: flex;
+    flex-direction: column;  /* Stack icon above label */
     align-items: center;
-    gap: 12px;
-    padding: 16px 20px;
+    justify-content: center;
+    gap: 6px;  /* Gap between icon and label */
+    padding: 12px 4px;  /* Compact padding */
     background: transparent;
     border: none;
-    border-left: 3px solid transparent;
+    border-right: 3px solid transparent;  /* Indicator on the right side */
     color: var(--secondary-text);
     cursor: pointer;
     transition: all var(--transition-fast);
-    text-align: left;
+    text-align: center;
+    position: relative;
 }
 
 .tab-btn:hover {
@@ -133,25 +138,28 @@ body {
 
 .tab-btn.active {
     background: var(--tertiary-bg);
-    border-left-color: var(--primary-accent);
+    border-right-color: var(--primary-accent);  /* Active indicator on right */
     color: var(--primary-text);
 }
 
 .tab-icon {
-    font-size: 20px;
-    width: 24px;
+    font-size: 22px;
+    width: auto;
     text-align: center;
 }
 
 .tab-label {
-    font-size: 14px;
+    font-size: 11px;  /* Smaller font for compact design */
     font-weight: 500;
+    line-height: 1.2;
+    word-break: break-word;  /* Wrap long labels */
 }
 
 .tab-content-area {
-    flex: 1;
+    flex: 1;  /* Take remaining space (82% of sidebar) */
     overflow-y: auto;
     padding: 20px;
+    background: var(--secondary-bg);
 }
 
 .tab-panel {
@@ -907,7 +915,7 @@ body {
 /* Responsive */
 @media (max-width: 1200px) {
     :root {
-        --sidebar-width: 240px;
+        --sidebar-width: 280px;
     }
 }
 
