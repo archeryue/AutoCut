@@ -51,6 +51,8 @@ export interface SpriteState {
   filters: FilterSettings;
   playbackRate: number;
   opacity: number; // 0-1
+  volume: number; // 0-1, default 1.0
+  isMuted: boolean; // default false
 }
 
 /**

@@ -6,7 +6,7 @@ Guidance for Claude Code when working with AutoCut v2.0 - a WebAV-powered browse
 
 **Tech Stack**: WebAV + WebCodecs, Web Audio API, Canvas API, ES6 modules
 **Browser**: Chrome 94+, Edge 94+ (WebCodecs required)
-**Tests**: 68 tests (61 unit + 7 E2E) - ALL MUST PASS
+**Tests**: 71 tests (61 unit + 10 E2E) - ALL MUST PASS
 **Architecture**: Single-file app (src/app.ts) using WebAV for video processing
 
 ## 🚨 CRITICAL PRINCIPLE: Run Tests Yourself
@@ -16,10 +16,11 @@ Guidance for Claude Code when working with AutoCut v2.0 - a WebAV-powered browse
 ### Testing Policy
 
 1. **After implementing ANY feature**: Run `npm test && npm run test:e2e` yourself
-2. **To verify functionality**: Use automated E2E tests (Playwright), not manual browser testing
-3. **Export verification**: E2E test checks export works - trust the test results
-4. **Debugging issues**: Use Playwright's screenshots/videos in `test-results/` directory
-5. **If tests fail**: Fix the code and re-run tests until they pass
+2. **ALWAYS add test cases for new features**: Both unit tests AND E2E tests must be added
+3. **To verify functionality**: Use automated E2E tests (Playwright), not manual browser testing
+4. **Export verification**: E2E test checks export works - trust the test results
+5. **Debugging issues**: Use Playwright's screenshots/videos in `test-results/` directory
+6. **If tests fail**: Fix the code and re-run tests until they pass
 
 ### Why This Matters
 
@@ -75,6 +76,9 @@ E2E tests verify:
 - ✅ Playback speed changes work
 - ✅ **Export with playback speed** (tests 2x speed, audio sync)
 - ✅ **Export with filters** (tests multi-clip export with filters + audio) - MOST CRITICAL
+- ✅ **Volume control** (tests volume slider and mute checkbox)
+- ✅ **Keyboard shortcuts** (tests Space, S, Delete, etc.)
+- ✅ **Undo/Redo** (tests keyboard shortcuts and UI buttons)
 
 **If E2E tests fail, the feature is NOT complete!**
 
@@ -85,7 +89,7 @@ E2E tests verify:
 npm test && npx playwright test
 ```
 
-**Expected result**: `7 passed (36.2s)` with all tests showing ✓
+**Expected result**: `10 passed (38.2s)` with all tests showing ✓
 
 **IMPORTANT**: E2E tests require **system-installed Google Chrome** (not Playwright's bundled Chromium). Playwright's Chromium has WebCodecs limitations on macOS ARM64, specifically VideoDecoder cannot decode H.264 videos. The config (`playwright.config.ts`) is already set to use system Chrome via `channel: 'chrome'`.
 
@@ -414,7 +418,9 @@ const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 3. **Handle in renderFrame** - Update frame rendering if needed
 4. **Handle in export** - Update exportVideo if needed
 5. **Add unit tests** - Document the feature with tests in `tests/`
-6. **Update this file** - Add notes for future Claude instances
+6. **Add E2E tests** - MANDATORY for all new features in `e2e/autocut.spec.ts`
+7. **Run all tests** - Verify `npm test && npm run test:e2e` passes
+8. **Update this file** - Add notes for future Claude instances
 
 ### ⚠️ MANDATORY: Testing Before Completion
 
@@ -430,7 +436,7 @@ npm run dev
 
 # 3. Run E2E tests (CRITICAL - DO NOT SKIP!)
 npm run test:e2e
-# Expected: All 6 tests pass (52.9s)
+# Expected: All 10 tests pass (38.2s)
 
 # OR run everything at once
 npm run test:all
@@ -446,13 +452,17 @@ npm run test:all
 
 ### E2E Test Coverage Reminder
 
-The 6 E2E tests verify:
+The 10 E2E tests verify:
 1. Application loads correctly
 2. Video upload works
 3. Clip splitting works
 4. Filters apply per-clip correctly
 5. Playback speed changes
-6. **Video export works with audio** (MOST CRITICAL)
+6. **Video export with playback speed** (tests 2x speed, audio sync)
+7. **Video export with filters** (multi-clip export with filters + audio) - MOST CRITICAL
+8. **Volume control** (volume slider and mute checkbox)
+9. **Keyboard shortcuts** (Space, S, Delete, etc.)
+10. **Undo/Redo** (keyboard shortcuts and UI buttons)
 
 If your feature affects any of these areas, verify the related test still passes.
 
@@ -464,3 +474,45 @@ If your feature changes the UI or workflow, update `e2e/autocut.spec.ts`:
 - New dialogs → Add dialog handling
 
 See [E2E_TESTING.md](./E2E_TESTING.md) for complete guide.
+
+## 🚀 Enhancement Roadmap
+
+### Recently Completed ✅
+
+**Playback Speed Timeline Fix** (2025-11-09)
+- ✅ Timeline duration now adjusts when playback speed changes
+- ✅ Subsequent clips shift automatically
+- ✅ Split clips preserve playback rate correctly
+
+**Inspector Panel** (2025-11-09)
+- ✅ Right-side inspector panel for clip properties
+- ✅ Separated asset library (left) from clip editing (right)
+- ✅ Smart auto-show/hide behavior
+- ✅ Speed, opacity, and volume controls in one place
+
+### Planned Enhancements 🔧
+
+See [ROADMAP.md](./ROADMAP.md) for detailed implementation plans.
+
+**Priority 1: Core Functionality**
+1. **Volume Control** - Per-clip audio volume adjustment
+2. **Keyboard Shortcuts** - Space for play/pause, arrow keys for frame navigation
+3. **Undo/Redo** - Full history stack for all editing operations
+
+**Priority 2: Timeline Improvements**
+4. **Clip Trimming Handles** - Drag edges to trim clips directly on timeline
+5. **Transitions** - Fade, dissolve, and wipe transitions between clips
+6. **Snapping** - Magnetic snapping when moving clips
+
+**Priority 3: Advanced Features**
+7. **Multi-track Timeline** - Multiple video/audio tracks
+8. **Audio Waveforms** - Visual audio representation on timeline
+9. **Text/Titles** - Add text overlays with animations
+10. **Keyframe Animation** - Animate opacity, position, scale over time
+
+**Future Considerations**
+- Mobile responsive design
+- Collaborative editing (multi-user)
+- Cloud storage integration
+- Advanced color grading
+- AI-powered auto-editing

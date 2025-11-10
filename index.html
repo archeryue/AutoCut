@@ -124,25 +124,8 @@
                             </div>
                         </div>
 
-                        <div class="filter-section">
-                            <h4>Speed</h4>
-                            <label>Playback Speed:</label>
-                            <select id="speedSelect" class="form-control">
-                                <option value="0.25">0.25x</option>
-                                <option value="0.5">0.5x</option>
-                                <option value="1" selected>1.0x</option>
-                                <option value="1.5">1.5x</option>
-                                <option value="2">2.0x</option>
-                                <option value="3">3.0x</option>
-                            </select>
-                        </div>
-
-                        <div class="filter-section">
-                            <h4>Opacity</h4>
-                            <div class="slider-control">
-                                <input type="range" id="opacitySlider" min="0" max="100" value="100" class="slider">
-                                <span id="opacityValue" class="slider-value">100%</span>
-                            </div>
+                        <div class="filter-info">
+                            <p class="info-text">💡 Tip: For speed, opacity, and volume controls, select a clip and check the Properties panel on the right →</p>
                         </div>
                     </div>
                 </div>
@@ -188,7 +171,10 @@
                 <!-- Timeline Area -->
                 <div class="timeline-container">
                     <div class="timeline-header">
-                        <h3>Timeline</h3>
+                        <div class="timeline-history">
+                            <button id="undoBtn" class="btn-tool" title="Undo (Cmd/Ctrl+Z)" disabled>↶ Undo</button>
+                            <button id="redoBtn" class="btn-tool" title="Redo (Cmd/Ctrl+Shift+Z)" disabled>↷ Redo</button>
+                        </div>
                         <div class="timeline-tools">
                             <button id="splitBtn" class="btn-tool" title="Split Clip">
                                 <span>✂️</span> Split
@@ -239,6 +225,75 @@
                     </div>
                 </div>
             </main>
+
+            <!-- Right Inspector Panel -->
+            <aside id="inspectorPanel" class="right-inspector hidden">
+                <div class="inspector-header">
+                    <h3>⚙️ Clip Properties</h3>
+                    <button id="closeInspectorBtn" class="btn-close" title="Close">×</button>
+                </div>
+
+                <div class="inspector-content">
+                    <!-- Clip Info -->
+                    <div class="inspector-section">
+                        <div class="clip-info">
+                            <div class="clip-name" id="inspectorClipName">No clip selected</div>
+                            <div class="clip-duration" id="inspectorClipDuration"></div>
+                        </div>
+                    </div>
+
+                    <!-- Speed Section -->
+                    <div class="inspector-section">
+                        <h4>⚡ Speed</h4>
+                        <div class="control-group">
+                            <label for="inspectorSpeedSelect">Playback Speed:</label>
+                            <select id="inspectorSpeedSelect" class="form-control">
+                                <option value="0.25">0.25x (Slow Motion)</option>
+                                <option value="0.5">0.5x (Half Speed)</option>
+                                <option value="1" selected>1.0x (Normal)</option>
+                                <option value="1.5">1.5x (Fast)</option>
+                                <option value="2">2.0x (Double)</option>
+                                <option value="3">3.0x (Triple)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Volume Section -->
+                    <div class="inspector-section">
+                        <h4>🔊 Audio</h4>
+                        <div class="control-group">
+                            <label for="inspectorVolumeSlider">Volume:</label>
+                            <div class="slider-control">
+                                <input type="range" id="inspectorVolumeSlider" min="0" max="100" value="100" class="slider">
+                                <span id="inspectorVolumeValue" class="slider-value">100%</span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>
+                                <input type="checkbox" id="inspectorMuteCheckbox">
+                                Mute this clip
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Appearance Section -->
+                    <div class="inspector-section">
+                        <h4>🎨 Appearance</h4>
+                        <div class="control-group">
+                            <label for="inspectorOpacitySlider">Opacity:</label>
+                            <div class="slider-control">
+                                <input type="range" id="inspectorOpacitySlider" min="0" max="100" value="100" class="slider">
+                                <span id="inspectorOpacityValue" class="slider-value">100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Info Section -->
+                    <div class="inspector-section inspector-info">
+                        <p class="info-text">💡 Tip: Select a clip on the timeline to edit its properties</p>
+                    </div>
+                </div>
+            </aside>
         </div>
     </div>
 

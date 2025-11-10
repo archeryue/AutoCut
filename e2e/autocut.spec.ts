@@ -145,16 +145,15 @@ test.describe('AutoCut Features', () => {
     await page.locator('#videoUpload').setInputFiles(testVideoPath);
     await page.waitForSelector('.clip', { timeout: 30000 });
 
-    // Select the clip
+    // Select the clip (this should open the inspector panel)
     await page.locator('.clip').first().click();
     await page.waitForTimeout(500);
 
-    // Go to Filters tab
-    await page.locator('[data-tab="filters"]').click();
-    await page.waitForTimeout(500);
+    // Wait for inspector panel to appear
+    await page.waitForSelector('#inspectorPanel:not(.hidden)', { timeout: 5000 });
 
-    // Change speed to 2x
-    const speedSelect = page.locator('#speedSelect');
+    // Change speed to 2x using inspector panel
+    const speedSelect = page.locator('#inspectorSpeedSelect');
     await speedSelect.selectOption('2');
     await page.waitForTimeout(500);
 
@@ -180,12 +179,13 @@ test.describe('AutoCut Features', () => {
     await page.locator('#videoUpload').setInputFiles(testVideoPath);
     await page.waitForSelector('.clip', { timeout: 30000 });
 
-    // Select the clip and change speed to 2x
+    // Select the clip (this should open the inspector panel)
     await page.locator('.clip').first().click();
     await page.waitForTimeout(500);
-    await page.locator('[data-tab="filters"]').click();
-    await page.waitForTimeout(500);
-    await page.locator('#speedSelect').selectOption('2');
+
+    // Wait for inspector panel to appear and change speed to 2x
+    await page.waitForSelector('#inspectorPanel:not(.hidden)', { timeout: 5000 });
+    await page.locator('#inspectorSpeedSelect').selectOption('2');
     await page.waitForTimeout(500);
 
     console.log('✅ Playback speed set to 2x, ready to export');
@@ -343,5 +343,195 @@ test.describe('AutoCut Features', () => {
     expect(validation.metadata.videoCodec).toBe('h264');
 
     console.log(`✅ Export validated: ${validation.metadata.duration.toFixed(2)}s (expected ~${originalMetadata.duration.toFixed(2)}s), audio: ${validation.metadata.audioCodec}`);
+  });
+
+  test('should control clip volume and mute', async ({ page }) => {
+    const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
+
+    // Upload video
+    await page.locator('#videoUpload').setInputFiles(testVideoPath);
+    await page.waitForSelector('.clip', { timeout: 30000 });
+
+    // Select the clip (opens inspector panel)
+    await page.locator('.clip').first().click();
+    await page.waitForTimeout(500);
+
+    // Wait for inspector panel
+    await page.waitForSelector('#inspectorPanel:not(.hidden)', { timeout: 5000 });
+
+    // Test volume slider
+    const volumeSlider = page.locator('#inspectorVolumeSlider');
+    await volumeSlider.fill('50');
+    await page.waitForTimeout(300);
+
+    // Verify volume value display
+    const volumeValue = await page.locator('#inspectorVolumeValue').textContent();
+    expect(volumeValue).toBe('50%');
+
+    console.log('✅ Volume slider set to 50%');
+
+    // Test mute checkbox
+    const muteCheckbox = page.locator('#inspectorMuteCheckbox');
+    await muteCheckbox.check();
+    await page.waitForTimeout(300);
+
+    // Verify checkbox is checked
+    await expect(muteCheckbox).toBeChecked();
+
+    console.log('✅ Mute checkbox activated');
+
+    // Uncheck mute
+    await muteCheckbox.uncheck();
+    await expect(muteCheckbox).not.toBeChecked();
+
+    console.log('✅ Volume control working correctly');
+  });
+
+  test('should use keyboard shortcuts', async ({ page }) => {
+    const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
+
+    // Upload video
+    await page.locator('#videoUpload').setInputFiles(testVideoPath);
+    await page.waitForSelector('.clip', { timeout: 30000 });
+
+    // Test Space key (play/pause)
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(500);
+
+    const playPauseBtn = page.locator('#playPauseBtn .icon');
+    let iconText = await playPauseBtn.textContent();
+    expect(iconText).toBe('⏸'); // Should be playing (showing pause icon)
+
+    console.log('✅ Space key triggered play');
+
+    // Pause again
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(500);
+    iconText = await playPauseBtn.textContent();
+    expect(iconText).toBe('▶'); // Should be paused (showing play icon)
+
+    console.log('✅ Space key triggered pause');
+
+    // Test S key (split) - First select clip and move playhead
+    await page.locator('.clip').first().click();
+    await page.evaluate(() => {
+      const state = (window as any).autoCutDebug?.state;
+      if (state && state.sprites.length > 0) {
+        state.currentTime = state.sprites[0].startTime + (state.sprites[0].duration / 2);
+      }
+    });
+    await page.waitForTimeout(300);
+
+    // Press S to split
+    await page.keyboard.press('s');
+    await page.waitForTimeout(1000);
+
+    // Check that we now have 2 clips
+    const clips = page.locator('.clip');
+    await expect(clips).toHaveCount(2);
+
+    console.log('✅ S key triggered split');
+
+    // Test Delete button (keyboard shortcut has focus issues in Playwright)
+    await page.locator('.clip').first().click();
+    await page.waitForTimeout(500);
+
+    // Setup dialog handler for delete confirmation
+    page.once('dialog', async dialog => {
+      await dialog.accept();
+    });
+
+    // Click delete button from toolbar
+    await page.locator('#deleteBtn').click();
+    await page.waitForTimeout(1000);
+
+    // Should have 1 clip remaining
+    await expect(clips).toHaveCount(1);
+
+    console.log('✅ Delete button removed clip');
+    console.log('✅ Keyboard shortcuts working correctly (Space, S tested)');
+    console.log('   Note: Delete key not tested due to Playwright focus limitations');
+  });
+
+  test('should undo and redo actions', async ({ page }) => {
+    const testVideoPath = path.resolve(__dirname, '../test-video.mp4');
+
+    // Upload video
+    await page.locator('#videoUpload').setInputFiles(testVideoPath);
+    await page.waitForSelector('.clip', { timeout: 30000 });
+
+    // Verify initial state: 1 clip, undo button disabled
+    let clips = page.locator('.clip');
+    await expect(clips).toHaveCount(1);
+
+    const undoBtn = page.locator('#undoBtn');
+    const redoBtn = page.locator('#redoBtn');
+
+    await expect(undoBtn).toBeDisabled();
+    await expect(redoBtn).toBeDisabled();
+
+    console.log('✅ Initial state: 1 clip, undo/redo disabled');
+
+    // Perform a split action
+    await page.locator('.clip').first().click();
+    await page.evaluate(() => {
+      const state = (window as any).autoCutDebug?.state;
+      if (state && state.sprites.length > 0) {
+        state.currentTime = state.sprites[0].startTime + (state.sprites[0].duration / 2);
+      }
+    });
+    await page.waitForTimeout(300);
+    await page.keyboard.press('s');
+    await page.waitForTimeout(1000);
+
+    // Verify split: 2 clips, undo enabled, redo disabled
+    await expect(clips).toHaveCount(2);
+    await expect(undoBtn).toBeEnabled();
+    await expect(redoBtn).toBeDisabled();
+
+    console.log('✅ After split: 2 clips, undo enabled');
+
+    // Test undo with keyboard shortcut (Cmd+Z on Mac, Ctrl+Z on others)
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+    await page.waitForTimeout(1000);
+
+    // Verify undo: back to 1 clip, undo disabled, redo enabled
+    await expect(clips).toHaveCount(1);
+    await expect(undoBtn).toBeDisabled();
+    await expect(redoBtn).toBeEnabled();
+
+    console.log('✅ Undo (Cmd/Ctrl+Z): back to 1 clip, redo enabled');
+
+    // Test redo with keyboard shortcut
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Shift+z' : 'Control+Shift+z');
+    await page.waitForTimeout(1000);
+
+    // Verify redo: back to 2 clips, undo enabled, redo disabled
+    await expect(clips).toHaveCount(2);
+    await expect(undoBtn).toBeEnabled();
+    await expect(redoBtn).toBeDisabled();
+
+    console.log('✅ Redo (Cmd/Ctrl+Shift+Z): back to 2 clips');
+
+    // Test undo with button click
+    await undoBtn.click();
+    await page.waitForTimeout(1000);
+
+    // Verify button undo works
+    await expect(clips).toHaveCount(1);
+    await expect(redoBtn).toBeEnabled();
+
+    console.log('✅ Undo button: back to 1 clip');
+
+    // Test redo with button click
+    await redoBtn.click();
+    await page.waitForTimeout(1000);
+
+    // Verify button redo works
+    await expect(clips).toHaveCount(2);
+    await expect(undoBtn).toBeEnabled();
+
+    console.log('✅ Redo button: back to 2 clips');
+    console.log('✅ Undo/redo working correctly');
   });
 });

@@ -9,6 +9,9 @@ import { MP4Clip, OffscreenSprite, Combinator } from '@webav/av-cliper';
 // Import our application types
 import type { AppState, Material, SpriteState, FilterSettings } from './types/app';
 
+// Import history manager
+import { HistoryManager } from './history';
+
 // ==================== Global State ====================
 
 const state: AppState = {
@@ -37,6 +40,9 @@ const state: AppState = {
     nextAudioTime: 0, // Track when next audio chunk should play
     activeAudioSources: [], // Track active audio sources
 };
+
+// History manager for undo/redo
+const history = new HistoryManager();
 
 // ==================== Initialization ====================
 
@@ -95,6 +101,24 @@ function setupEventListeners(): void {
 
     // Filters
     setupFilters();
+
+    // Inspector panel
+    setupInspector();
+
+    // Keyboard shortcuts
+    setupKeyboardShortcuts();
+
+    // Undo/Redo buttons
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
+    if (undoBtn) {
+        undoBtn.addEventListener('click', performUndo);
+    }
+    if (redoBtn) {
+        redoBtn.addEventListener('click', performRedo);
+    }
+    // Initialize button states
+    updateUndoRedoButtons();
 
     // Export
     const exportBtn = document.getElementById('exportBtn');
@@ -323,7 +347,9 @@ async function addMaterialToTimeline(material: Material): Promise<void> {
                 blur: 0
             },
             playbackRate: 1.0,
-            opacity: 1.0
+            opacity: 1.0,
+            volume: 1.0,
+            isMuted: false
         };
 
         state.sprites.push(spriteState);
@@ -468,6 +494,9 @@ function selectSprite(spriteId: string): void {
 
     // Update filter UI for selected sprite
     updateFilterUI();
+
+    // Update inspector panel for selected sprite
+    updateInspectorUI();
 
     console.log('Selected sprite:', spriteId);
 }
@@ -683,15 +712,22 @@ async function renderFrame(time: number): Promise<void> {
 
             // Play the audio samples at normal speed
             // (playback speed is already applied by advancing sourceTime faster/slower)
-            await playAudioSamples(result.audio, sampleRate);
+            // Apply volume and mute settings
+            await playAudioSamples(result.audio, sampleRate, activeSprite.volume, activeSprite.isMuted);
         }
     } catch (error) {
         console.error('Error rendering frame:', error);
     }
 }
 
-async function playAudioSamples(channelSamples: Float32Array[], sampleRate: number): Promise<void> {
+async function playAudioSamples(channelSamples: Float32Array[], sampleRate: number, volume: number = 1.0, isMuted: boolean = false): Promise<void> {
     try {
+        // Skip audio if muted
+        if (isMuted) {
+            console.log('Audio muted, skipping playback');
+            return;
+        }
+
         // Create AudioContext if not exists
         if (!state.audioContext) {
             state.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -718,7 +754,9 @@ async function playAudioSamples(channelSamples: Float32Array[], sampleRate: numb
             sampleRate,
             duration: (duration * 1000).toFixed(2) + 'ms',
             scheduledAt: state.nextAudioTime.toFixed(3),
-            currentTime: state.audioContext.currentTime.toFixed(3)
+            currentTime: state.audioContext.currentTime.toFixed(3),
+            volume: volume,
+            isMuted: isMuted
         });
 
         // Create AudioBuffer
@@ -736,10 +774,17 @@ async function playAudioSamples(channelSamples: Float32Array[], sampleRate: numb
             }
         }
 
-        // Schedule audio to play at the correct time
+        // Create audio source
         const source = state.audioContext.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(state.audioContext.destination);
+
+        // Create gain node for volume control
+        const gainNode = state.audioContext.createGain();
+        gainNode.gain.value = volume;
+
+        // Connect: source -> gain -> destination
+        source.connect(gainNode);
+        gainNode.connect(state.audioContext.destination);
 
         // Track this source so we can stop it when pausing
         state.activeAudioSources.push(source);
@@ -897,6 +942,31 @@ async function applyFiltersToClip(clip: MP4Clip, filters: FilterSettings): Promi
     };
 }
 
+// ==================== History Helper Functions ====================
+
+/**
+ * Create a snapshot of current sprites state
+ */
+function createSpritesSnapshot(): SpriteState[] {
+    return state.sprites.map(s => ({
+        ...s,
+        filters: { ...s.filters }
+    }));
+}
+
+/**
+ * Restore sprites from a snapshot
+ */
+function restoreSpritesSnapshot(snapshot: SpriteState[]): void {
+    state.sprites = snapshot.map(s => ({
+        ...s,
+        filters: { ...s.filters }
+    }));
+    renderTimeline();
+    updateFilterUI();
+    updateInspectorUI();
+}
+
 // ==================== Timeline Tools ====================
 
 function setupTimelineTools(): void {
@@ -931,26 +1001,35 @@ function splitClip(): void {
         return;
     }
 
+    // Create snapshot BEFORE split
+    const beforeSnapshot = createSpritesSnapshot();
+    const beforeSelectedId = state.selectedSpriteId;
+
     // Auto-select the clip under playhead
     state.selectedSpriteId = clipUnderPlayhead.id;
     const spriteIndex = state.sprites.findIndex(s => s.id === clipUnderPlayhead.id);
     const sprite = state.sprites[spriteIndex];
 
-    // Calculate split point
+    // Calculate split point (timeline time)
     const splitPoint = state.currentTime - sprite.startTime;
+
+    // When playback rate is applied, we need to convert timeline time to source time
+    const playbackRate = sprite.playbackRate;
+    const sourceSplitPoint = splitPoint * playbackRate;
 
     // Create two new sprites - MUST create new OffscreenSprite for BOTH parts
     // to avoid shared reference issues
     const sprite1: SpriteState = {
         ...sprite,
         id: generateId(),
-        duration: splitPoint
+        duration: splitPoint  // Timeline duration
     };
     // Create new sprite for first part (keep original offset)
     sprite1.sprite = new OffscreenSprite(sprite.clip);
     sprite1.sprite.time = {
         offset: sprite.sprite.time.offset,  // Keep original offset
-        duration: splitPoint
+        duration: sourceSplitPoint,  // Source duration (timeline * playbackRate)
+        playbackRate: playbackRate
     };
     sprite1.sprite.opacity = sprite.opacity;
 
@@ -958,14 +1037,15 @@ function splitClip(): void {
         ...sprite,
         id: generateId(),
         startTime: sprite.startTime + splitPoint,
-        duration: sprite.duration - splitPoint
+        duration: sprite.duration - splitPoint  // Timeline duration
     };
-    // Create new sprite for second part (offset by split point)
+    // Create new sprite for second part (offset by split point in source time)
     sprite2.sprite = new OffscreenSprite(sprite.clip);
     sprite2.sprite.time = {
-        // IMPORTANT: Add to existing offset, don't replace it
-        offset: sprite.sprite.time.offset + splitPoint,
-        duration: sprite2.duration
+        // IMPORTANT: Add source split point (not timeline split point) to existing offset
+        offset: sprite.sprite.time.offset + sourceSplitPoint,
+        duration: sprite2.duration * playbackRate,  // Source duration (timeline * playbackRate)
+        playbackRate: playbackRate
     };
     sprite2.sprite.opacity = sprite.opacity;
 
@@ -975,9 +1055,28 @@ function splitClip(): void {
     // Select first part
     state.selectedSpriteId = sprite1.id;
 
-    renderTimeline();
+    // Create snapshot AFTER split
+    const afterSnapshot = createSpritesSnapshot();
+    const afterSelectedId = state.selectedSpriteId;
 
-    console.log('Split clip at', state.currentTime);
+    // Add to history
+    history.push({
+        type: 'split',
+        description: 'Split clip',
+        do: () => {
+            restoreSpritesSnapshot(afterSnapshot);
+            state.selectedSpriteId = afterSelectedId;
+        },
+        undo: () => {
+            restoreSpritesSnapshot(beforeSnapshot);
+            state.selectedSpriteId = beforeSelectedId;
+        }
+    });
+
+    renderTimeline();
+    updateUndoRedoButtons();
+
+    console.log('Split clip at', state.currentTime, '(timeline), source split:', sourceSplitPoint, 'playbackRate:', playbackRate);
 }
 
 function deleteClip(): void {
@@ -987,6 +1086,10 @@ function deleteClip(): void {
     }
 
     if (!confirm('Delete selected clip?')) return;
+
+    // Create snapshot BEFORE delete
+    const beforeSnapshot = createSpritesSnapshot();
+    const beforeSelectedId = state.selectedSpriteId;
 
     const spriteIndex = state.sprites.findIndex(s => s.id === state.selectedSpriteId);
     if (spriteIndex === -1) return;
@@ -1010,7 +1113,36 @@ function deleteClip(): void {
 
     state.selectedSpriteId = null;
 
+    // Create snapshot AFTER delete
+    const afterSnapshot = createSpritesSnapshot();
+    const afterSelectedId = state.selectedSpriteId;
+
+    // Add to history
+    history.push({
+        type: 'delete',
+        description: 'Delete clip',
+        do: () => {
+            restoreSpritesSnapshot(afterSnapshot);
+            state.selectedSpriteId = afterSelectedId;
+            // Show placeholder if needed
+            if (state.sprites.length === 0) {
+                const placeholder = document.getElementById('canvasPlaceholder');
+                if (placeholder) placeholder.classList.add('active');
+            }
+        },
+        undo: () => {
+            restoreSpritesSnapshot(beforeSnapshot);
+            state.selectedSpriteId = beforeSelectedId;
+            // Hide placeholder if needed
+            const placeholder = document.getElementById('canvasPlaceholder');
+            if (placeholder && state.sprites.length > 0) {
+                placeholder.classList.remove('active');
+            }
+        }
+    });
+
     renderTimeline();
+    updateUndoRedoButtons();
 
     // Show placeholder if no sprites
     if (state.sprites.length === 0) {
@@ -1170,16 +1302,42 @@ function applyFilterToSelectedSprite(filterName: string): void {
 function setSelectedSpriteSpeed(speed: number): void {
     if (!state.selectedSpriteId) return;
 
-    const sprite = state.sprites.find(s => s.id === state.selectedSpriteId);
+    const spriteIndex = state.sprites.findIndex(s => s.id === state.selectedSpriteId);
+    if (spriteIndex === -1) return;
+
+    const sprite = state.sprites[spriteIndex];
     if (!sprite) return;
 
+    // Calculate old and new timeline durations
+    const oldTimelineDuration = sprite.duration;
+    const sourceDuration = sprite.sprite.time.duration; // Duration in source clip
+    const newTimelineDuration = sourceDuration / speed;
+    const durationDelta = newTimelineDuration - oldTimelineDuration;
+
+    // Update playback rate
     sprite.playbackRate = speed;
     sprite.sprite.time.playbackRate = speed;
 
+    // Update timeline duration
+    sprite.duration = newTimelineDuration;
+
+    // Shift subsequent sprites on timeline
+    for (let i = spriteIndex + 1; i < state.sprites.length; i++) {
+        state.sprites[i].startTime += durationDelta;
+    }
+
     console.log('Set playback rate:', speed, 'for sprite:', sprite.id);
+    console.log('Timeline duration changed from', oldTimelineDuration, 'to', newTimelineDuration);
+    console.log('Duration delta:', durationDelta, '- shifted', (state.sprites.length - spriteIndex - 1), 'subsequent clips');
+
+    // Re-render timeline to show updated durations
+    renderTimeline();
 
     // Re-render current frame to reflect speed change
     renderFrame(state.currentTime);
+
+    // Update inspector to show new duration
+    updateInspectorUI();
 }
 
 function setSelectedSpriteOpacity(opacity: number): void {
@@ -1193,6 +1351,40 @@ function setSelectedSpriteOpacity(opacity: number): void {
 
     // Re-render
     renderFrame(state.currentTime);
+
+    // Update inspector (not really needed for opacity since it updates live, but good for consistency)
+    updateInspectorUI();
+}
+
+function setSelectedSpriteVolume(volume: number): void {
+    if (!state.selectedSpriteId) return;
+
+    const sprite = state.sprites.find(s => s.id === state.selectedSpriteId);
+    if (!sprite) return;
+
+    sprite.volume = volume;
+
+    console.log('Set volume:', volume, 'for sprite:', sprite.id);
+
+    // Re-render current frame to apply volume change
+    renderFrame(state.currentTime);
+}
+
+function setSelectedSpriteMute(isMuted: boolean): void {
+    if (!state.selectedSpriteId) return;
+
+    const sprite = state.sprites.find(s => s.id === state.selectedSpriteId);
+    if (!sprite) return;
+
+    sprite.isMuted = isMuted;
+
+    console.log('Set muted:', isMuted, 'for sprite:', sprite.id);
+
+    // Re-render current frame to apply mute change
+    renderFrame(state.currentTime);
+
+    // Update inspector to show mute state
+    updateInspectorUI();
 }
 
 function updateFilterUI(): void {
@@ -1241,6 +1433,339 @@ function updateFilterUI(): void {
     if (opacityValue) {
         opacityValue.textContent = Math.round(sprite.opacity * 100) + '%';
     }
+}
+
+// ==================== Inspector Panel ====================
+
+function setupInspector(): void {
+    // Close button
+    const closeBtn = document.getElementById('closeInspectorBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', hideInspector);
+    }
+
+    // Speed control
+    const speedSelect = document.getElementById('inspectorSpeedSelect') as HTMLSelectElement;
+    if (speedSelect) {
+        speedSelect.addEventListener('change', (e) => {
+            const target = e.target as HTMLSelectElement;
+            const speed = parseFloat(target.value);
+            setSelectedSpriteSpeed(speed);
+        });
+    }
+
+    // Opacity control
+    const opacitySlider = document.getElementById('inspectorOpacitySlider') as HTMLInputElement;
+    if (opacitySlider) {
+        opacitySlider.addEventListener('input', (e) => {
+            const target = e.target as HTMLInputElement;
+            const opacity = parseInt(target.value) / 100;
+            setSelectedSpriteOpacity(opacity);
+
+            const opacityValue = document.getElementById('inspectorOpacityValue');
+            if (opacityValue) {
+                opacityValue.textContent = target.value + '%';
+            }
+        });
+    }
+
+    // Volume control
+    const volumeSlider = document.getElementById('inspectorVolumeSlider') as HTMLInputElement;
+    if (volumeSlider) {
+        volumeSlider.addEventListener('input', (e) => {
+            const target = e.target as HTMLInputElement;
+            const volume = parseInt(target.value) / 100;
+            setSelectedSpriteVolume(volume);
+
+            const volumeValue = document.getElementById('inspectorVolumeValue');
+            if (volumeValue) {
+                volumeValue.textContent = target.value + '%';
+            }
+        });
+    }
+
+    // Mute checkbox
+    const muteCheckbox = document.getElementById('inspectorMuteCheckbox') as HTMLInputElement;
+    if (muteCheckbox) {
+        muteCheckbox.addEventListener('change', (e) => {
+            const target = e.target as HTMLInputElement;
+            setSelectedSpriteMute(target.checked);
+        });
+    }
+}
+
+function showInspector(): void {
+    const inspector = document.getElementById('inspectorPanel');
+    if (inspector) {
+        inspector.classList.remove('hidden');
+    }
+}
+
+function hideInspector(): void {
+    const inspector = document.getElementById('inspectorPanel');
+    if (inspector) {
+        inspector.classList.add('hidden');
+    }
+}
+
+function updateInspectorUI(): void {
+    if (!state.selectedSpriteId) {
+        hideInspector();
+        return;
+    }
+
+    const sprite = state.sprites.find(s => s.id === state.selectedSpriteId);
+    if (!sprite) {
+        hideInspector();
+        return;
+    }
+
+    // Show the inspector
+    showInspector();
+
+    // Update clip info
+    const material = state.materials.find(m => m.id === sprite.materialId);
+    const clipName = document.getElementById('inspectorClipName');
+    const clipDuration = document.getElementById('inspectorClipDuration');
+
+    if (clipName) {
+        clipName.textContent = material ? material.name : 'Unknown clip';
+    }
+
+    if (clipDuration) {
+        const durationSec = sprite.duration / 1000000;
+        clipDuration.textContent = `Duration: ${durationSec.toFixed(2)}s (${sprite.playbackRate}x speed)`;
+    }
+
+    // Update speed
+    const speedSelect = document.getElementById('inspectorSpeedSelect') as HTMLSelectElement;
+    if (speedSelect) {
+        speedSelect.value = String(sprite.playbackRate);
+    }
+
+    // Update opacity
+    const opacitySlider = document.getElementById('inspectorOpacitySlider') as HTMLInputElement;
+    const opacityValue = document.getElementById('inspectorOpacityValue');
+    if (opacitySlider) {
+        opacitySlider.value = String(sprite.opacity * 100);
+    }
+    if (opacityValue) {
+        opacityValue.textContent = Math.round(sprite.opacity * 100) + '%';
+    }
+
+    // Update volume
+    const volumeSlider = document.getElementById('inspectorVolumeSlider') as HTMLInputElement;
+    const volumeValue = document.getElementById('inspectorVolumeValue');
+    const muteCheckbox = document.getElementById('inspectorMuteCheckbox') as HTMLInputElement;
+
+    if (volumeSlider) {
+        volumeSlider.value = String(sprite.volume * 100);
+    }
+    if (volumeValue) {
+        volumeValue.textContent = Math.round(sprite.volume * 100) + '%';
+    }
+    if (muteCheckbox) {
+        muteCheckbox.checked = sprite.isMuted;
+    }
+}
+
+// ==================== Keyboard Shortcuts ====================
+
+function setupKeyboardShortcuts(): void {
+    document.addEventListener('keydown', handleKeyPress);
+    console.log('Keyboard shortcuts enabled');
+}
+
+function handleKeyPress(e: KeyboardEvent): void {
+    // Ignore if typing in input field or textarea
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        return;
+    }
+
+    // Handle Cmd/Ctrl+Z for undo/redo (priority check)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+            performRedo();
+        } else {
+            performUndo();
+        }
+        return;
+    }
+
+    // Ignore if other modifier keys are pressed
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+    }
+
+    switch (e.key) {
+        // Playback controls
+        case ' ':  // Space - Play/Pause
+            e.preventDefault();
+            togglePlayPause();
+            break;
+
+        case 'k':
+        case 'K':  // K - Play/Pause (alternate)
+            e.preventDefault();
+            togglePlayPause();
+            break;
+
+        case 'j':
+        case 'J':  // J - Rewind 1 second
+            e.preventDefault();
+            seekRelative(-1000000); // -1 second in microseconds
+            break;
+
+        case 'l':
+        case 'L':  // L - Forward 1 second
+            e.preventDefault();
+            seekRelative(1000000); // +1 second in microseconds
+            break;
+
+        // Timeline navigation
+        case 'ArrowLeft':  // Arrow Left - Move playhead backward 1 frame (~33ms at 30fps)
+            e.preventDefault();
+            seekRelative(-33333); // ~1 frame at 30fps
+            break;
+
+        case 'ArrowRight':  // Arrow Right - Move playhead forward 1 frame
+            e.preventDefault();
+            seekRelative(33333); // ~1 frame at 30fps
+            break;
+
+        case 'Home':  // Home - Go to start
+            e.preventDefault();
+            seekTo(0);
+            break;
+
+        case 'End':  // End - Go to end
+            e.preventDefault();
+            const totalDuration = state.sprites.reduce((sum, s) => Math.max(sum, s.startTime + s.duration), 0);
+            seekTo(totalDuration);
+            break;
+
+        // Editing operations
+        case 's':
+        case 'S':  // S - Split clip at playhead
+            e.preventDefault();
+            splitClip();
+            break;
+
+        case 'Delete':
+        case 'Backspace':  // Delete/Backspace - Delete selected clip
+            e.preventDefault();
+            if (state.selectedSpriteId) {
+                deleteClip();
+            }
+            break;
+
+        case 'ArrowUp':  // Arrow Up - Select previous clip
+            e.preventDefault();
+            selectAdjacentClip(-1);
+            break;
+
+        case 'ArrowDown':  // Arrow Down - Select next clip
+            e.preventDefault();
+            selectAdjacentClip(1);
+            break;
+
+        case '?':  // ? - Show keyboard shortcuts help
+            e.preventDefault();
+            showKeyboardHelp();
+            break;
+
+        default:
+            // Ignore other keys
+            break;
+    }
+}
+
+function seekRelative(deltaMicroseconds: number): void {
+    const newTime = Math.max(0, state.currentTime + deltaMicroseconds);
+    const maxTime = state.sprites.reduce((sum, s) => Math.max(sum, s.startTime + s.duration), 0);
+    seekTo(Math.min(newTime, maxTime));
+}
+
+function seekTo(timeMicroseconds: number): void {
+    state.currentTime = timeMicroseconds;
+    renderFrame(state.currentTime);
+    updateTimeDisplay(state.currentTime);
+    updatePlayhead();
+}
+
+function selectAdjacentClip(direction: number): void {
+    if (state.sprites.length === 0) return;
+
+    const currentIndex = state.selectedSpriteId
+        ? state.sprites.findIndex(s => s.id === state.selectedSpriteId)
+        : -1;
+
+    let newIndex = currentIndex + direction;
+
+    // Wrap around
+    if (newIndex < 0) newIndex = state.sprites.length - 1;
+    if (newIndex >= state.sprites.length) newIndex = 0;
+
+    if (state.sprites[newIndex]) {
+        selectSprite(state.sprites[newIndex].id);
+        // Move playhead to the start of the selected clip
+        seekTo(state.sprites[newIndex].startTime);
+    }
+}
+
+function performUndo(): void {
+    if (history.undo()) {
+        updateUndoRedoButtons();
+        console.log('Undo performed');
+    }
+}
+
+function performRedo(): void {
+    if (history.redo()) {
+        updateUndoRedoButtons();
+        console.log('Redo performed');
+    }
+}
+
+function updateUndoRedoButtons(): void {
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
+
+    if (undoBtn) {
+        undoBtn.disabled = !history.canUndo();
+        const description = history.getUndoDescription();
+        undoBtn.title = description ? `Undo: ${description}` : 'Nothing to undo';
+    }
+
+    if (redoBtn) {
+        redoBtn.disabled = !history.canRedo();
+        const description = history.getRedoDescription();
+        redoBtn.title = description ? `Redo: ${description}` : 'Nothing to redo';
+    }
+}
+
+function showKeyboardHelp(): void {
+    // For now, just log the shortcuts
+    // TODO: Create a modal dialog
+    console.log('Keyboard Shortcuts:');
+    console.log('Space / K: Play/Pause');
+    console.log('J: Rewind 1 second');
+    console.log('L: Forward 1 second');
+    console.log('Arrow Left: Previous frame');
+    console.log('Arrow Right: Next frame');
+    console.log('Arrow Up: Select previous clip');
+    console.log('Arrow Down: Select next clip');
+    console.log('Home: Go to start');
+    console.log('End: Go to end');
+    console.log('S: Split clip at playhead');
+    console.log('Delete/Backspace: Delete selected clip');
+    console.log('Cmd/Ctrl+Z: Undo');
+    console.log('Cmd/Ctrl+Shift+Z: Redo');
+    console.log('?: Show this help');
+
+    alert('Keyboard Shortcuts:\n\nSpace/K: Play/Pause\nJ: Rewind 1s\nL: Forward 1s\n←→: Previous/Next frame\n↑↓: Previous/Next clip\nHome/End: Start/End\nS: Split clip\nDelete: Delete clip\nCmd/Ctrl+Z: Undo\nCmd/Ctrl+Shift+Z: Redo\n?: Show help');
 }
 
 // ==================== Export ====================
